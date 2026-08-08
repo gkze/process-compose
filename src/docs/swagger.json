@@ -7,6 +7,9 @@
                         "type": "string"
                     }
                 },
+                "required": [
+                    "error"
+                ],
                 "type": "object"
             },
             "api.LogsResponse": {
@@ -47,6 +50,23 @@
             "api.StatusResponse": {
                 "properties": {
                     "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "command.ShellConfig": {
+                "properties": {
+                    "elevatedShellArg": {
+                        "type": "string"
+                    },
+                    "elevatedShellCmd": {
+                        "type": "string"
+                    },
+                    "shellArgument": {
+                        "type": "string"
+                    },
+                    "shellCommand": {
                         "type": "string"
                     }
                 },
@@ -118,29 +138,6 @@
                 },
                 "type": "object"
             },
-            "time.Duration": {
-                "enum": [
-                    -9223372036854776000,
-                    9223372036854776000,
-                    1,
-                    1000,
-                    1000000,
-                    1000000000,
-                    60000000000,
-                    3600000000000
-                ],
-                "type": "integer",
-                "x-enum-varnames": [
-                    "minDuration",
-                    "maxDuration",
-                    "Nanosecond",
-                    "Microsecond",
-                    "Millisecond",
-                    "Second",
-                    "Minute",
-                    "Hour"
-                ]
-            },
             "types.DependencyGraph": {
                 "properties": {
                     "nodes": {
@@ -172,6 +169,12 @@
             "types.DependsOnConfig": {
                 "additionalProperties": {
                     "$ref": "#/components/schemas/types.ProcessDependency"
+                },
+                "type": "object"
+            },
+            "types.EnvCmd": {
+                "additionalProperties": {
+                    "type": "string"
                 },
                 "type": "object"
             },
@@ -312,6 +315,36 @@
                     "MCPProcessTypeResource"
                 ]
             },
+            "types.MCPServerConfig": {
+                "properties": {
+                    "exposeControlTools": {
+                        "description": "Optional: when true, expose built-in pc_* control tools",
+                        "type": "boolean"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "port": {
+                        "type": "integer"
+                    },
+                    "timeout": {
+                        "description": "Optional: defaults to \"5m\"",
+                        "type": "string"
+                    },
+                    "transport": {
+                        "description": "Optional: defaults to \"sse\"",
+                        "type": "string"
+                    },
+                    "trustedHosts": {
+                        "description": "Optional: extra Host/Origin names trusted by the SSE listener (loopback is always allowed; \"*\" disables the check)",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
             "types.MemoryState": {
                 "properties": {
                     "allocated": {
@@ -327,6 +360,12 @@
                         "type": "integer"
                     }
                 },
+                "required": [
+                    "allocated",
+                    "gcCycles",
+                    "systemMemory",
+                    "totalAllocated"
+                ],
                 "type": "object"
             },
             "types.MonitorFor": {
@@ -455,7 +494,7 @@
                         "$ref": "#/components/schemas/types.MonitorFor"
                     },
                     "monitorSilenceThreshold": {
-                        "$ref": "#/components/schemas/time.Duration"
+                        "type": "integer"
                     },
                     "name": {
                         "type": "string"
@@ -614,6 +653,12 @@
                 },
                 "type": "object"
             },
+            "types.Processes": {
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/types.ProcessConfig"
+                },
+                "type": "object"
+            },
             "types.ProcessesState": {
                 "properties": {
                     "data": {
@@ -621,6 +666,90 @@
                             "$ref": "#/components/schemas/types.ProcessState"
                         },
                         "type": "array"
+                    }
+                },
+                "type": "object"
+            },
+            "types.Project": {
+                "properties": {
+                    "disableEnvExpansion": {
+                        "type": "boolean"
+                    },
+                    "dotEnvVars": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "envCommands": {
+                        "$ref": "#/components/schemas/types.EnvCmd"
+                    },
+                    "envFileNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "environment": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "extendsProject": {
+                        "type": "string"
+                    },
+                    "extensions": {
+                        "additionalProperties": {},
+                        "type": "object"
+                    },
+                    "fileNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "isOrderedShutdown": {
+                        "type": "boolean"
+                    },
+                    "isStrict": {
+                        "type": "boolean"
+                    },
+                    "isTuiDisabled": {
+                        "type": "boolean"
+                    },
+                    "logFormat": {
+                        "type": "string"
+                    },
+                    "logLength": {
+                        "type": "integer"
+                    },
+                    "logLevel": {
+                        "type": "string"
+                    },
+                    "logLocation": {
+                        "type": "string"
+                    },
+                    "loggerConfig": {
+                        "$ref": "#/components/schemas/types.LoggerConfig"
+                    },
+                    "mcpServer": {
+                        "$ref": "#/components/schemas/types.MCPServerConfig"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "processes": {
+                        "$ref": "#/components/schemas/types.Processes"
+                    },
+                    "shellConfig": {
+                        "$ref": "#/components/schemas/command.ShellConfig"
+                    },
+                    "vars": {
+                        "$ref": "#/components/schemas/types.Vars"
+                    },
+                    "version": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -658,6 +787,16 @@
                         "type": "string"
                     }
                 },
+                "required": [
+                    "fileNames",
+                    "processNum",
+                    "projectName",
+                    "runningProcessNum",
+                    "startTime",
+                    "upTime",
+                    "userName",
+                    "version"
+                ],
                 "type": "object"
             },
             "types.RestartPolicy": {
@@ -744,6 +883,14 @@
                 "additionalProperties": {},
                 "type": "object"
             }
+        },
+        "securitySchemes": {
+            "ApiTokenAuth": {
+                "description": "Required when API token authentication is configured; otherwise no API key is required.",
+                "in": "header",
+                "name": "X-PC-Token-Key",
+                "type": "apiKey"
+            }
         }
     },
     "externalDocs": {
@@ -783,14 +930,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Get dependency graph",
@@ -813,6 +967,16 @@
                             }
                         },
                         "description": "Alive Status"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Liveness Check",
@@ -851,14 +1015,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Restart a namespace",
@@ -897,14 +1068,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Start a namespace",
@@ -943,14 +1121,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Stop a namespace",
@@ -981,14 +1166,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Get all namespaces",
@@ -1028,14 +1220,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Updates process configuration",
@@ -1074,14 +1273,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Get process config",
@@ -1101,6 +1307,8 @@
                         "name": "name",
                         "required": true,
                         "schema": {
+                            "minLength": 1,
+                            "pattern": "[^,]",
                             "type": "string"
                         }
                     },
@@ -1118,6 +1326,7 @@
                         "in": "query",
                         "name": "follow",
                         "schema": {
+                            "default": false,
                             "type": "boolean"
                         }
                     }
@@ -1134,7 +1343,27 @@
                                 }
                             }
                         },
-                        "description": "Bad Request"
+                        "description": "Invalid name, offset, follow, or WebSocket upgrade request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid before upgrade"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Cross-origin WebSocket upgrade request rejected"
                     }
                 },
                 "summary": "Stream process logs over WebSocket",
@@ -1173,14 +1402,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Truncate process logs",
@@ -1237,14 +1473,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Get process logs",
@@ -1283,14 +1526,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Get process ports",
@@ -1329,14 +1579,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Restart a process",
@@ -1365,6 +1622,7 @@
                         "name": "scale",
                         "required": true,
                         "schema": {
+                            "minimum": 1,
                             "type": "integer"
                         }
                     }
@@ -1384,14 +1642,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Scale a process to a given replicas count",
@@ -1442,14 +1707,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Send keys to an interactive process",
@@ -1478,6 +1750,8 @@
                         "name": "signal",
                         "required": true,
                         "schema": {
+                            "maximum": 22,
+                            "minimum": 0,
                             "type": "integer"
                         }
                     }
@@ -1497,14 +1771,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Signal a process",
@@ -1543,14 +1824,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Start a process",
@@ -1585,7 +1873,27 @@
                                 }
                             }
                         },
-                        "description": "Bad Request"
+                        "description": "Invalid WebSocket upgrade request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid before upgrade"
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Cross-origin WebSocket upgrade request rejected"
                     }
                 },
                 "summary": "Stream process state changes over WebSocket",
@@ -1624,14 +1932,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Stop a process",
@@ -1670,14 +1985,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Get process state",
@@ -1705,14 +2027,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Get all processes",
@@ -1771,14 +2100,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Stop processes",
@@ -1791,6 +2127,18 @@
             "post": {
                 "description": "Update running project",
                 "operationId": "UpdateProject",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/types.Project"
+                            }
+                        }
+                    },
+                    "description": "Project configuration to update",
+                    "required": true,
+                    "x-originalParamName": "project"
+                },
                 "responses": {
                     "200": {
                         "content": {
@@ -1822,14 +2170,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Updates running processes",
@@ -1873,14 +2228,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Reload project",
@@ -1908,14 +2270,21 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Get Project Name",
@@ -1928,6 +2297,17 @@
             "get": {
                 "description": "Retrieves project state information",
                 "operationId": "GetProjectState",
+                "parameters": [
+                    {
+                        "description": "Include runtime memory statistics",
+                        "in": "query",
+                        "name": "withMemory",
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "content": {
@@ -1939,14 +2319,31 @@
                         },
                         "description": "Project State"
                     },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
+                    },
                     "500": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
                                 }
                             }
                         },
@@ -1973,6 +2370,16 @@
                             }
                         },
                         "description": "Stopped Server"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/api.ErrorResponse"
+                                }
+                            }
+                        },
+                        "description": "API token missing or invalid"
                     }
                 },
                 "summary": "Stops all the processes and the server",
@@ -1982,9 +2389,15 @@
             }
         }
     },
+    "security": [
+        {
+            "ApiTokenAuth": []
+        },
+        {}
+    ],
     "servers": [
         {
-            "url": "https://localhost:8080/"
+            "url": "http://localhost:8080/"
         }
     ]
 }

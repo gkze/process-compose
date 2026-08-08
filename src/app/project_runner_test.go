@@ -295,6 +295,32 @@ func TestProjectRunner_GetProjectName(t *testing.T) {
 	}
 }
 
+func TestProjectRunner_GetProjectStateMemoryIsRequestScoped(t *testing.T) {
+	runner, err := NewProjectRunner(&ProjectOpts{
+		project: &types.Project{Processes: types.Processes{}},
+	})
+	if err != nil {
+		t.Fatalf("create project runner: %v", err)
+	}
+	t.Cleanup(runner.cancelAppFn)
+
+	withMemory, err := runner.GetProjectState(true)
+	if err != nil {
+		t.Fatalf("get project state with memory: %v", err)
+	}
+	if withMemory.MemoryState == nil {
+		t.Fatal("project state with memory omitted memoryState")
+	}
+
+	withoutMemory, err := runner.GetProjectState(false)
+	if err != nil {
+		t.Fatalf("get project state without memory: %v", err)
+	}
+	if withoutMemory.MemoryState != nil {
+		t.Fatal("project state without memory retained memoryState from the previous request")
+	}
+}
+
 func TestProjectRunner_EnvironmentExpansion(t *testing.T) {
 	testProcess := types.ProcessConfig{
 		Vars: map[string]any{

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -17,7 +18,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{Error: writeWebSocketUpgradeError}
+
+func writeWebSocketUpgradeError(writer http.ResponseWriter, _ *http.Request, status int, reason error) {
+	writer.Header().Set("Sec-Websocket-Version", "13")
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(status)
+	if err := json.NewEncoder(writer).Encode(ErrorResponse{Error: reason.Error()}); err != nil {
+		log.Error().Err(err).Msg("failed to write WebSocket upgrade error")
+	}
+}
 
 // @Schemes
 // @Id                    LogsStream
@@ -25,16 +35,33 @@ var upgrader = websocket.Upgrader{}
 // @Description           Upgrades HTTP to WebSocket and streams JSON log messages. Each message is api.LogMessage.
 // @Tags                  Process
 // @Produce               json
-// @Param                 name   query   string true  "Comma-separated process names to stream"
+// @Param                 name   query   string true  "Comma-separated process names to stream" minlength(1)
 // @Param                 offset query   int    true  "Offset from the end of the log"
-// @Param                 follow query   bool   false "If true, continue streaming new lines"
+// @Param                 follow query   bool   false "If true, continue streaming new lines" default(false)
 // @Success               101 "Switching Protocols"
-// @Failure               400 {object} api.ErrorResponse
+// @Failure               400 {object} api.ErrorResponse "Invalid name, offset, follow, or WebSocket upgrade request"
+// @Failure               401 {object} api.ErrorResponse "API token missing or invalid before upgrade"
+// @Failure               403 {object} api.ErrorResponse "Cross-origin WebSocket upgrade request rejected"
 // @Router                /process/logs/ws [get]
 func (api *PcApi) HandleLogsStream(c *gin.Context) {
 	processNamesStr := c.Query("name")
 	processNames := strings.Split(processNamesStr, ",")
-	follow := c.Query("follow") == "true"
+	hasProcessName := false
+	for _, processName := range processNames {
+		if processName != "" {
+			hasProcessName = true
+			break
+		}
+	}
+	if !hasProcessName {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "at least one process name is required"})
+		return
+	}
+	follow, err := strconv.ParseBool(c.DefaultQuery("follow", "false"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid follow value: " + err.Error()})
+		return
+	}
 	endOffset, err := strconv.Atoi(c.Query("offset"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -42,7 +69,6 @@ func (api *PcApi) HandleLogsStream(c *gin.Context) {
 	}
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

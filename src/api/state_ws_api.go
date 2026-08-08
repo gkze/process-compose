@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"net"
-	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -74,14 +73,15 @@ func (o *stateWsObserver) signalClose() {
 // @Produce               json
 // @Param                 name query string false "Comma-separated process names to subscribe to. If omitted, subscribes to all processes."
 // @Success               101 "Switching Protocols"
-// @Failure               400 {object} api.ErrorResponse
+// @Failure               400 {object} api.ErrorResponse "Invalid WebSocket upgrade request"
+// @Failure               401 {object} api.ErrorResponse "API token missing or invalid before upgrade"
+// @Failure               403 {object} api.ErrorResponse "Cross-origin WebSocket upgrade request rejected"
 // @Router                /process/states/ws [get]
 func (api *PcApi) HandleStatesStream(c *gin.Context) {
 	filter := api.parseStateNameFilter(c.Query("name"))
 
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 

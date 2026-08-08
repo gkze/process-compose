@@ -10,28 +10,28 @@ import (
 type Vars map[string]any
 
 type Project struct {
-	Version             string               `yaml:",omitempty"`
-	Name                string               `yaml:"name,omitempty"`
-	LogLocation         string               `yaml:"log_location,omitempty"`
-	LogLevel            string               `yaml:"log_level,omitempty"`
-	LogLength           int                  `yaml:"log_length,omitempty"`
-	LoggerConfig        *LoggerConfig        `yaml:"log_configuration,omitempty"`
-	LogFormat           string               `yaml:"log_format,omitempty"`
-	Processes           Processes            `yaml:"processes"`
-	Environment         Environment          `yaml:"environment,omitempty"`
-	ShellConfig         *command.ShellConfig `yaml:"shell,omitempty"`
-	IsStrict            bool                 `yaml:"is_strict,omitempty"`
-	Vars                Vars                 `yaml:"vars,omitempty"`
-	DisableEnvExpansion bool                 `yaml:"disable_env_expansion,omitempty"`
-	IsTuiDisabled       bool                 `yaml:"is_tui_disabled,omitempty"`
-	ExtendsProject      string               `yaml:"extends,omitempty"`
-	EnvCommands         EnvCmd               `yaml:"env_cmds,omitempty"`
-	IsOrderedShutdown   bool                 `yaml:"ordered_shutdown,omitempty"`
-	FileNames           []string             `yaml:"file_names,omitempty"`
-	EnvFileNames        []string             `yaml:"env_file_names,omitempty"`
-	DotEnvVars          map[string]string    `yaml:"dot_env_vars,omitempty"`
-	Extensions          map[string]any       `yaml:",inline"`
-	MCPServer           *MCPServerConfig     `yaml:"mcp_server,omitempty"`
+	Version             string               `yaml:",omitempty" json:"version,omitempty"`
+	Name                string               `yaml:"name,omitempty" json:"name,omitempty"`
+	LogLocation         string               `yaml:"log_location,omitempty" json:"logLocation,omitempty"`
+	LogLevel            string               `yaml:"log_level,omitempty" json:"logLevel,omitempty"`
+	LogLength           int                  `yaml:"log_length,omitempty" json:"logLength,omitempty"`
+	LoggerConfig        *LoggerConfig        `yaml:"log_configuration,omitempty" json:"loggerConfig,omitempty"`
+	LogFormat           string               `yaml:"log_format,omitempty" json:"logFormat,omitempty"`
+	Processes           Processes            `yaml:"processes" json:"processes,omitempty"`
+	Environment         Environment          `yaml:"environment,omitempty" json:"environment,omitempty"`
+	ShellConfig         *command.ShellConfig `yaml:"shell,omitempty" json:"shellConfig,omitempty"`
+	IsStrict            bool                 `yaml:"is_strict,omitempty" json:"isStrict,omitempty"`
+	Vars                Vars                 `yaml:"vars,omitempty" json:"vars,omitempty"`
+	DisableEnvExpansion bool                 `yaml:"disable_env_expansion,omitempty" json:"disableEnvExpansion,omitempty"`
+	IsTuiDisabled       bool                 `yaml:"is_tui_disabled,omitempty" json:"isTuiDisabled,omitempty"`
+	ExtendsProject      string               `yaml:"extends,omitempty" json:"extendsProject,omitempty"`
+	EnvCommands         EnvCmd               `yaml:"env_cmds,omitempty" json:"envCommands,omitempty"`
+	IsOrderedShutdown   bool                 `yaml:"ordered_shutdown,omitempty" json:"isOrderedShutdown,omitempty"`
+	FileNames           []string             `yaml:"file_names,omitempty" json:"fileNames,omitempty"`
+	EnvFileNames        []string             `yaml:"env_file_names,omitempty" json:"envFileNames,omitempty"`
+	DotEnvVars          map[string]string    `yaml:"dot_env_vars,omitempty" json:"dotEnvVars,omitempty"`
+	Extensions          map[string]any       `yaml:",inline" json:"extensions,omitempty"`
+	MCPServer           *MCPServerConfig     `yaml:"mcp_server,omitempty" json:"mcpServer,omitempty"`
 }
 
 type ProcessFunc func(process ProcessConfig) error

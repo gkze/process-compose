@@ -23,7 +23,17 @@ import (
 //	@externalDocs.url			https://f1bonacc1.github.io/process-compose/
 //	@host						localhost:8080
 //	@BasePath					/
+//	@schemes					http
 //	@query.collection.format	multi
+
+//	@security					ApiTokenAuth
+//	@securityDefinitions.apikey	ApiTokenAuth
+//	@in						header
+//	@name					X-PC-Token-Key
+//	@description				Required when API token authentication is configured; otherwise no API key is required.
+
+// The pinned generator cannot express the anonymous alternative for conditional
+// authentication. scripts/postprocess-openapi.go adds it deterministically.
 
 type PcApi struct {
 	project app.IProject
@@ -41,7 +51,8 @@ func NewPcApi(project app.IProject) *PcApi {
 // @Produce		json
 // @Param			name	path		string	true	"Process Name"
 // @Success		200		{object}	types.ProcessState
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/{name} [get]
 func (api *PcApi) GetProcess(c *gin.Context) {
 	name := c.Param("name")
@@ -63,7 +74,8 @@ func (api *PcApi) GetProcess(c *gin.Context) {
 // @Produce		json
 // @Param			name	path		string	true	"Process Name"
 // @Success		200		{object}	types.ProcessConfig
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/info/{name} [get]
 func (api *PcApi) GetProcessInfo(c *gin.Context) {
 	name := c.Param("name")
@@ -84,7 +96,8 @@ func (api *PcApi) GetProcessInfo(c *gin.Context) {
 // @Summary		Get all processes
 // @Produce		json
 // @Success		200	{object}	types.ProcessesState	"Processes Status"
-// @Failure		400	{object}	map[string]string
+// @Failure		400	{object}	api.ErrorResponse
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/processes [get]
 func (api *PcApi) GetProcesses(c *gin.Context) {
 	states, err := api.project.GetProcessesState()
@@ -106,7 +119,8 @@ func (api *PcApi) GetProcesses(c *gin.Context) {
 // @Param			endOffset	path		int					true	"Offset from the end of the log"
 // @Param			limit		path		int					true	"Limit of lines to get (0 will get all the lines till the end)"
 // @Success		200			{object}	api.LogsResponse	"Process Logs"
-// @Failure		400			{object}	map[string]string
+// @Failure		400			{object}	api.ErrorResponse
+// @Failure		401			{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/logs/{name}/{endOffset}/{limit} [get]
 func (api *PcApi) GetProcessLogs(c *gin.Context) {
 	name := c.Param("name")
@@ -139,7 +153,8 @@ func (api *PcApi) GetProcessLogs(c *gin.Context) {
 // @Produce		json
 // @Param		name		path		string				true	"Process Name"
 // @Success		200			{object}	api.NameResponse	"Truncated Process Name"
-// @Failure		400			{object}	map[string]string
+// @Failure		400			{object}	api.ErrorResponse
+// @Failure		401			{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/logs/{name} [delete]
 func (api *PcApi) TruncateProcessLogs(c *gin.Context) {
 	name := c.Param("name")
@@ -160,7 +175,8 @@ func (api *PcApi) TruncateProcessLogs(c *gin.Context) {
 // @Produce		json
 // @Param			name	path		string				true	"Process Name"
 // @Success		200		{object}	api.NameResponse	"Stopped Process Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/stop/{name} [patch]
 func (api *PcApi) StopProcess(c *gin.Context) {
 	name := c.Param("name")
@@ -180,9 +196,10 @@ func (api *PcApi) StopProcess(c *gin.Context) {
 // @Summary		Signal a process
 // @Produce		json
 // @Param			name	path		string				true	"Process Name"
-// @Param			signal	path		int					true	"Signal Number"
+// @Param			signal	path		int					true	"Signal Number"	minimum(0)	maximum(22)
 // @Success		200		{object}	api.NameResponse	"Signaled Process Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/signal/{name}/{signal} [patch]
 func (api *PcApi) SendSignal(c *gin.Context) {
 	name := c.Param("name")
@@ -219,7 +236,8 @@ func (api *PcApi) SendSignal(c *gin.Context) {
 // @Produce		json
 // @Success		200	{object}	map[string]string	"Stopped Processes Names"
 // @Success		207	{object}	map[string]string	"Stopped Processes Names"
-// @Failure		400	{object}	map[string]string
+// @Failure		400	{object}	api.ErrorResponse
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/processes/stop [patch]
 func (api *PcApi) StopProcesses(c *gin.Context) {
 	var names []string
@@ -248,7 +266,8 @@ func (api *PcApi) StopProcesses(c *gin.Context) {
 // @Produce		json
 // @Param			name	path		string				true	"Process Name"
 // @Success		200		{object}	api.NameResponse	"Started Process Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/start/{name} [post]
 func (api *PcApi) StartProcess(c *gin.Context) {
 	name := c.Param("name")
@@ -269,7 +288,8 @@ func (api *PcApi) StartProcess(c *gin.Context) {
 // @Produce		json
 // @Param			name	path		string				true	"Namespace Name"
 // @Success		200		{object}	api.NameResponse	"Started Namespace Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/namespace/start/{name} [post]
 func (api *PcApi) StartNamespace(c *gin.Context) {
 	name := c.Param("name")
@@ -290,7 +310,8 @@ func (api *PcApi) StartNamespace(c *gin.Context) {
 // @Produce		json
 // @Param			name	path		string				true	"Namespace Name"
 // @Success		200		{object}	api.NameResponse	"Stopped Namespace Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/namespace/stop/{name} [post]
 func (api *PcApi) StopNamespace(c *gin.Context) {
 	name := c.Param("name")
@@ -311,7 +332,8 @@ func (api *PcApi) StopNamespace(c *gin.Context) {
 // @Produce		json
 // @Param			name	path		string				true	"Namespace Name"
 // @Success		200		{object}	api.NameResponse	"Restarted Namespace Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/namespace/restart/{name} [post]
 func (api *PcApi) RestartNamespace(c *gin.Context) {
 	name := c.Param("name")
@@ -331,7 +353,8 @@ func (api *PcApi) RestartNamespace(c *gin.Context) {
 // @Summary		Get all namespaces
 // @Produce		json
 // @Success		200	{object}	[]string	"Namespaces List"
-// @Failure		400	{object}	map[string]string
+// @Failure		400	{object}	api.ErrorResponse
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/namespaces [get]
 func (api *PcApi) GetNamespaces(c *gin.Context) {
 	namespaces, err := api.project.GetNamespaces()
@@ -351,7 +374,8 @@ func (api *PcApi) GetNamespaces(c *gin.Context) {
 // @Produce		json
 // @Param			name	path		string				true	"Process Name"
 // @Success		200		{object}	api.NameResponse	"Restarted Process Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/restart/{name} [post]
 func (api *PcApi) RestartProcess(c *gin.Context) {
 	name := c.Param("name")
@@ -374,7 +398,8 @@ func (api *PcApi) RestartProcess(c *gin.Context) {
 // @Param			name	path		string				true	"Process Name"
 // @Param			keys	body		api.SendKeysRequest	true	"Keys to send"
 // @Success		200		{object}	api.NameResponse	"Process Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/send-keys/{name} [post]
 func (api *PcApi) SendProcessKeys(c *gin.Context) {
 	name := c.Param("name")
@@ -398,9 +423,10 @@ func (api *PcApi) SendProcessKeys(c *gin.Context) {
 // @Summary		Scale a process to a given replicas count
 // @Produce		json
 // @Param			name	path		string				true	"Process Name"
-// @Param			scale	path		int					true	"New amount of process replicas"
+// @Param			scale	path		int					true	"New amount of process replicas"	minimum(1)
 // @Success		200		{object}	api.NameResponse	"Scaled Process Name"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/scale/{name}/{scale} [patch]
 func (api *PcApi) ScaleProcess(c *gin.Context) {
 	name := c.Param("name")
@@ -425,6 +451,7 @@ func (api *PcApi) ScaleProcess(c *gin.Context) {
 // @Summary		Liveness Check
 // @Produce		json
 // @Success		200	{object}	api.StatusResponse	"Alive Status"
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/live [get]
 func (api *PcApi) IsAlive(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "alive"})
@@ -437,7 +464,8 @@ func (api *PcApi) IsAlive(c *gin.Context) {
 // @Summary		Get Project Name
 // @Produce		json
 // @Success		200	{object}	api.ProjectNameResponse	"Project Name"
-// @Failure		400	{object}	map[string]string
+// @Failure		400	{object}	api.ErrorResponse
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/project/name [get]
 func (api *PcApi) GetProjectName(c *gin.Context) {
 	name, err := api.project.GetProjectName()
@@ -457,7 +485,8 @@ func (api *PcApi) GetProjectName(c *gin.Context) {
 // @Produce		json
 // @Param			name	path		string				true	"Process Name"
 // @Success		200		{object}	types.ProcessPorts	"Process Ports"
-// @Failure		400		{object}	map[string]string
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process/ports/{name} [get]
 func (api *PcApi) GetProcessPorts(c *gin.Context) {
 	name := c.Param("name")
@@ -478,6 +507,7 @@ func (api *PcApi) GetProcessPorts(c *gin.Context) {
 // @Summary		Stops all the processes and the server
 // @Produce		json
 // @Success		200	{object}	api.StatusResponse	"Stopped Server"
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/project/stop [post]
 func (api *PcApi) ShutDownProject(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "stopped"})
@@ -489,21 +519,24 @@ func (api *PcApi) ShutDownProject(c *gin.Context) {
 // @Description	Update running project
 // @Tags			Project
 // @Summary		Updates running processes
+// @Accept			json
 // @Produce		json
-// @Success		200	{object}	map[string]string	"Update Project Status"
-// @Success		207	{object}	map[string]string	"Update Project Status"
-// @Failure		400	{object}	map[string]string
+// @Param			project	body		types.Project	true	"Project configuration to update"
+// @Success		200		{object}	map[string]string	"Update Project Status"
+// @Success		207		{object}	map[string]string	"Update Project Status"
+// @Failure		400		{object}	api.ErrorResponse
+// @Failure		401		{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/project [post]
 func (api *PcApi) UpdateProject(c *gin.Context) {
 	var project types.Project
 	if err := c.ShouldBindJSON(&project); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 	status, err := api.project.UpdateProject(&project)
 	if err != nil {
 		if len(status) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		} else {
 			c.JSON(http.StatusMultiStatus, status)
 		}
@@ -520,7 +553,8 @@ func (api *PcApi) UpdateProject(c *gin.Context) {
 // @Accept			json
 // @Param			process	body	types.ProcessConfig	true	"Process configuration to update"
 // @Success		200	{object}	types.ProcessConfig	"Updated Process Config"
-// @Failure		400	{object}	map[string]string
+// @Failure		400	{object}	api.ErrorResponse
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/process [post]
 func (api *PcApi) UpdateProcess(c *gin.Context) {
 	var proc types.ProcessConfig
@@ -542,16 +576,22 @@ func (api *PcApi) UpdateProcess(c *gin.Context) {
 // @Tags			Project
 // @Summary		Get project state
 // @Produce		json
+// @Param			withMemory	query	bool	false	"Include runtime memory statistics"	default(false)
 // @Success		200	{object}	types.ProjectState	"Project State"
-// @Failure		500	{object}	map[string]string
+// @Failure		400	{object}	api.ErrorResponse
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
+// @Failure		500	{object}	api.ErrorResponse
 // @Router			/project/state [get]
 func (api *PcApi) GetProjectState(c *gin.Context) {
 	withMemory := c.DefaultQuery("withMemory", "false")
-	checkMem, _ := strconv.ParseBool(withMemory)
-	state, err := api.project.GetProjectState(checkMem)
-
+	checkMem, err := strconv.ParseBool(withMemory)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid withMemory value: " + err.Error()})
+		return
+	}
+	state, err := api.project.GetProjectState(checkMem)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -566,7 +606,8 @@ func (api *PcApi) GetProjectState(c *gin.Context) {
 // @Produce		json
 // @Success		200	{object}	map[string]string	"Update Project Status"
 // @Success		207	{object}	map[string]string	"Update Project Status"
-// @Failure		400	{object}	map[string]string
+// @Failure		400	{object}	api.ErrorResponse
+// @Failure		401	{object}	api.ErrorResponse	"API token missing or invalid"
 // @Router			/project/configuration [post]
 func (api *PcApi) ReloadProject(c *gin.Context) {
 	status, err := api.project.ReloadProject()
@@ -588,7 +629,8 @@ func (api *PcApi) ReloadProject(c *gin.Context) {
 // @Summary         Get dependency graph
 // @Produce         json
 // @Success         200 {object} types.DependencyGraph
-// @Failure         400 {object} map[string]string
+// @Failure         400 {object} api.ErrorResponse
+// @Failure         401 {object} api.ErrorResponse "API token missing or invalid"
 // @Router          /graph [get]
 func (api *PcApi) GetDependencyGraph(c *gin.Context) {
 	graph, err := api.project.GetDependencyGraph()

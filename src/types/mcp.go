@@ -9,12 +9,12 @@ import (
 
 // MCPServerConfig defines the top-level MCP server configuration
 type MCPServerConfig struct {
-	Host               string `yaml:"host,omitempty"`
-	Port               int    `yaml:"port,omitempty"`
-	Transport          string   `yaml:"transport,omitempty"`            // Optional: defaults to "sse"
-	Timeout            string   `yaml:"timeout,omitempty"`              // Optional: defaults to "5m"
-	ExposeControlTools bool     `yaml:"expose_control_tools,omitempty"` // Optional: when true, expose built-in pc_* control tools
-	TrustedHosts       []string `yaml:"trusted_hosts,omitempty"`        // Optional: extra Host/Origin names trusted by the SSE listener (loopback is always allowed; "*" disables the check)
+	Host               string   `yaml:"host,omitempty" json:"host,omitempty"`
+	Port               int      `yaml:"port,omitempty" json:"port,omitempty"`
+	Transport          string   `yaml:"transport,omitempty" json:"transport,omitempty"`                     // Optional: defaults to "sse"
+	Timeout            string   `yaml:"timeout,omitempty" json:"timeout,omitempty"`                         // Optional: defaults to "5m"
+	ExposeControlTools bool     `yaml:"expose_control_tools,omitempty" json:"exposeControlTools,omitempty"` // Optional: when true, expose built-in pc_* control tools
+	TrustedHosts       []string `yaml:"trusted_hosts,omitempty" json:"trustedHosts,omitempty"`              // Optional: extra Host/Origin names trusted by the SSE listener (loopback is always allowed; "*" disables the check)
 }
 
 // IsEnabled returns true if MCP server is configured
@@ -111,18 +111,18 @@ func (t MCPArgumentType) IsValid() bool {
 
 // MCPArgument defines a single argument for an MCP tool
 type MCPArgument struct {
-	Name        string          `yaml:"name"`
-	Type        MCPArgumentType `yaml:"type"`
-	Description string          `yaml:"description,omitempty"`
-	Required    bool            `yaml:"required,omitempty"`
-	Default     string          `yaml:"default,omitempty"`
+	Name        string          `yaml:"name" json:"name,omitempty"`
+	Type        MCPArgumentType `yaml:"type" json:"type,omitempty"`
+	Description string          `yaml:"description,omitempty" json:"description,omitempty"`
+	Required    bool            `yaml:"required,omitempty" json:"required,omitempty"`
+	Default     string          `yaml:"default,omitempty" json:"default,omitempty"`
 }
 
 // MCPProcessConfig defines the MCP-specific configuration for a process
 type MCPProcessConfig struct {
-	Type      MCPProcessType `yaml:"type"`
-	Arguments []MCPArgument  `yaml:"arguments,omitempty"`
-	Timeout   string         `yaml:"timeout,omitempty"` // Optional: overrides global timeout
+	Type      MCPProcessType `yaml:"type" json:"type,omitempty"`
+	Arguments []MCPArgument  `yaml:"arguments,omitempty" json:"arguments,omitempty"`
+	Timeout   string         `yaml:"timeout,omitempty" json:"timeout,omitempty"` // Optional: overrides global timeout
 }
 
 // IsTool returns true if this is a tool-type process

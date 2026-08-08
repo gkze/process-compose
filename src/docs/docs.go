@@ -43,10 +43,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -68,6 +71,12 @@ const docTemplate = `{
                         "description": "Alive Status",
                         "schema": {
                             "$ref": "#/definitions/api.StatusResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -103,10 +112,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -142,10 +154,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -181,10 +196,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -214,10 +232,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -255,10 +276,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -294,10 +318,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -316,6 +343,8 @@ const docTemplate = `{
                 "operationId": "LogsStream",
                 "parameters": [
                     {
+                        "minLength": 1,
+                        "pattern": "[^,]",
                         "type": "string",
                         "description": "Comma-separated process names to stream",
                         "name": "name",
@@ -331,6 +360,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "boolean",
+                        "default": false,
                         "description": "If true, continue streaming new lines",
                         "name": "follow",
                         "in": "query"
@@ -341,7 +371,19 @@ const docTemplate = `{
                         "description": "Switching Protocols"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid name, offset, follow, or WebSocket upgrade request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid before upgrade",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Cross-origin WebSocket upgrade request rejected",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -379,10 +421,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -432,10 +477,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -471,10 +519,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -510,10 +561,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -539,6 +593,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "minimum": 1,
                         "type": "integer",
                         "description": "New amount of process replicas",
                         "name": "scale",
@@ -556,10 +611,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -607,10 +665,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -636,6 +697,8 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "maximum": 22,
+                        "minimum": 0,
                         "type": "integer",
                         "description": "Signal Number",
                         "name": "signal",
@@ -653,10 +716,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -692,10 +758,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -725,7 +794,19 @@ const docTemplate = `{
                         "description": "Switching Protocols"
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Invalid WebSocket upgrade request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid before upgrade",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Cross-origin WebSocket upgrade request rejected",
                         "schema": {
                             "$ref": "#/definitions/api.ErrorResponse"
                         }
@@ -763,10 +844,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -802,10 +886,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -832,10 +919,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -891,10 +981,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -903,6 +996,9 @@ const docTemplate = `{
         "/project": {
             "post": {
                 "description": "Update running project",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -911,6 +1007,17 @@ const docTemplate = `{
                 ],
                 "summary": "Updates running processes",
                 "operationId": "UpdateProject",
+                "parameters": [
+                    {
+                        "description": "Project configuration to update",
+                        "name": "project",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/types.Project"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Update Project Status",
@@ -933,10 +1040,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -975,10 +1085,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1005,10 +1118,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1025,6 +1141,15 @@ const docTemplate = `{
                 ],
                 "summary": "Get project state",
                 "operationId": "GetProjectState",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Include runtime memory statistics",
+                        "name": "withMemory",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Project State",
@@ -1032,13 +1157,22 @@ const docTemplate = `{
                             "$ref": "#/definitions/types.ProjectState"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/api.ErrorResponse"
                         }
                     }
                 }
@@ -1061,6 +1195,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/api.StatusResponse"
                         }
+                    },
+                    "401": {
+                        "description": "API token missing or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -1069,6 +1209,9 @@ const docTemplate = `{
     "definitions": {
         "api.ErrorResponse": {
             "type": "object",
+            "required": [
+                "error"
+            ],
             "properties": {
                 "error": {
                     "type": "string"
@@ -1114,6 +1257,23 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "command.ShellConfig": {
+            "type": "object",
+            "properties": {
+                "elevatedShellArg": {
+                    "type": "string"
+                },
+                "elevatedShellCmd": {
+                    "type": "string"
+                },
+                "shellArgument": {
+                    "type": "string"
+                },
+                "shellCommand": {
                     "type": "string"
                 }
             }
@@ -1184,29 +1344,6 @@ const docTemplate = `{
                 }
             }
         },
-        "time.Duration": {
-            "type": "integer",
-            "enum": [
-                -9223372036854775808,
-                9223372036854775807,
-                1,
-                1000,
-                1000000,
-                1000000000,
-                60000000000,
-                3600000000000
-            ],
-            "x-enum-varnames": [
-                "minDuration",
-                "maxDuration",
-                "Nanosecond",
-                "Microsecond",
-                "Millisecond",
-                "Second",
-                "Minute",
-                "Hour"
-            ]
-        },
         "types.DependencyGraph": {
             "type": "object",
             "properties": {
@@ -1239,6 +1376,12 @@ const docTemplate = `{
             "type": "object",
             "additionalProperties": {
                 "$ref": "#/definitions/types.ProcessDependency"
+            }
+        },
+        "types.EnvCmd": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
             }
         },
         "types.LogRotationConfig": {
@@ -1378,8 +1521,44 @@ const docTemplate = `{
                 "MCPProcessTypeResource"
             ]
         },
+        "types.MCPServerConfig": {
+            "type": "object",
+            "properties": {
+                "exposeControlTools": {
+                    "description": "Optional: when true, expose built-in pc_* control tools",
+                    "type": "boolean"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "timeout": {
+                    "description": "Optional: defaults to \"5m\"",
+                    "type": "string"
+                },
+                "transport": {
+                    "description": "Optional: defaults to \"sse\"",
+                    "type": "string"
+                },
+                "trustedHosts": {
+                    "description": "Optional: extra Host/Origin names trusted by the SSE listener (loopback is always allowed; \"*\" disables the check)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "types.MemoryState": {
             "type": "object",
+            "required": [
+                "allocated",
+                "gcCycles",
+                "systemMemory",
+                "totalAllocated"
+            ],
             "properties": {
                 "allocated": {
                     "type": "integer"
@@ -1522,7 +1701,7 @@ const docTemplate = `{
                     "$ref": "#/definitions/types.MonitorFor"
                 },
                 "monitorSilenceThreshold": {
-                    "$ref": "#/definitions/time.Duration"
+                    "type": "integer"
                 },
                 "name": {
                     "type": "string"
@@ -1680,6 +1859,12 @@ const docTemplate = `{
                 }
             }
         },
+        "types.Processes": {
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "#/definitions/types.ProcessConfig"
+            }
+        },
         "types.ProcessesState": {
             "type": "object",
             "properties": {
@@ -1691,8 +1876,102 @@ const docTemplate = `{
                 }
             }
         },
+        "types.Project": {
+            "type": "object",
+            "properties": {
+                "disableEnvExpansion": {
+                    "type": "boolean"
+                },
+                "dotEnvVars": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "envCommands": {
+                    "$ref": "#/definitions/types.EnvCmd"
+                },
+                "envFileNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "environment": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "extendsProject": {
+                    "type": "string"
+                },
+                "extensions": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "fileNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "isOrderedShutdown": {
+                    "type": "boolean"
+                },
+                "isStrict": {
+                    "type": "boolean"
+                },
+                "isTuiDisabled": {
+                    "type": "boolean"
+                },
+                "logFormat": {
+                    "type": "string"
+                },
+                "logLength": {
+                    "type": "integer"
+                },
+                "logLevel": {
+                    "type": "string"
+                },
+                "logLocation": {
+                    "type": "string"
+                },
+                "loggerConfig": {
+                    "$ref": "#/definitions/types.LoggerConfig"
+                },
+                "mcpServer": {
+                    "$ref": "#/definitions/types.MCPServerConfig"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "processes": {
+                    "$ref": "#/definitions/types.Processes"
+                },
+                "shellConfig": {
+                    "$ref": "#/definitions/command.ShellConfig"
+                },
+                "vars": {
+                    "$ref": "#/definitions/types.Vars"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "types.ProjectState": {
             "type": "object",
+            "required": [
+                "fileNames",
+                "processNum",
+                "projectName",
+                "runningProcessNum",
+                "startTime",
+                "upTime",
+                "userName",
+                "version"
+            ],
             "properties": {
                 "fileNames": {
                     "type": "array",
@@ -1811,6 +2090,20 @@ const docTemplate = `{
             "additionalProperties": {}
         }
     },
+    "securityDefinitions": {
+        "ApiTokenAuth": {
+            "description": "Required when API token authentication is configured; otherwise no API key is required.",
+            "type": "apiKey",
+            "name": "X-PC-Token-Key",
+            "in": "header"
+        }
+    },
+    "security": [
+        {
+            "ApiTokenAuth": []
+        },
+        {}
+    ],
     "externalDocs": {
         "url": "https://f1bonacc1.github.io/process-compose/"
     }
@@ -1821,7 +2114,7 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
 	BasePath:         "/",
-	Schemes:          []string{},
+	Schemes:          []string{"http"},
 	Title:            "Process Compose API",
 	Description:      "This is a sample Process Compose server.",
 	InfoInstanceName: "swagger",

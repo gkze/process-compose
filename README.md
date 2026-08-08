@@ -1,5 +1,8 @@
 ## Process Compose
 
+> [!IMPORTANT]
+> This repository is the public [`gkze/process-compose`](https://github.com/gkze/process-compose) fork of [`F1bonacc1/process-compose`](https://github.com/F1bonacc1/process-compose). Upstream remains the source for the project and its general documentation. Fork-specific builds, when available, are published on the [fork's Releases page](https://github.com/gkze/process-compose/releases) and can be installed with [`scripts/get-pc.sh`](./scripts/get-pc.sh).
+
 [![made-with-Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](https://go.dev/) [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/F1bonacc1/process-compose/graphs/commit-activity) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com) ![Go Report](https://goreportcard.com/badge/github.com/F1bonacc1/process-compose) [![Releases](https://img.shields.io/github/downloads/F1bonacc1/process-compose/total.svg)]() ![X (formerly Twitter) URL](https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2FProcessCompose&style=flat&logo=x&label=Process%20Compose)
 
 Process Compose is a simple and flexible scheduler and orchestrator to manage non-containerized applications.
@@ -63,7 +66,13 @@ Check the [Documentation](https://f1bonacc1.github.io/process-compose/launcher/)
 
 ## Get Process Compose
 
-[Installation Instructions](https://f1bonacc1.github.io/process-compose/installation/)
+Download fork builds from [`gkze/process-compose` Releases](https://github.com/gkze/process-compose/releases), or install a specific fork release tag from this checkout:
+
+```sh
+./scripts/get-pc.sh <fork-release-tag>
+```
+
+See the upstream [Installation Instructions](https://f1bonacc1.github.io/process-compose/installation/) for general setup and package-manager options.
 
 ## Documentation
 

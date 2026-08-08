@@ -1313,10 +1313,13 @@ func (p *ProjectRunner) GetProjectState(checkMem bool) (*types.ProjectState, err
 	}
 	p.projectState.RunningProcessNum = runningProcesses
 	p.projectState.UpTime = time.Since(p.projectState.StartTime)
+	state := *p.projectState
 	if checkMem {
-		p.projectState.MemoryState = getMemoryUsage()
+		state.MemoryState = getMemoryUsage()
+	} else {
+		state.MemoryState = nil
 	}
-	return p.projectState, nil
+	return &state, nil
 }
 
 func getMemoryUsage() *types.MemoryState {
@@ -1459,7 +1462,7 @@ func (p *ProjectRunner) ReloadProject() (map[string]string, error) {
 	status, err := p.UpdateProject(project)
 	if err != nil {
 		log.Err(err).Msg("Failed to update project")
-		return nil, err
+		return status, err
 	}
 	return status, nil
 }

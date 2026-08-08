@@ -12,6 +12,8 @@ process-compose
 result
 
 dist/
+/.schemathesis/
+/.venv/
 /exports
 www/venv
 www/.cache

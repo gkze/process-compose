@@ -1,0 +1,311 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*\+gkze*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-release
+  cancel-in-progress: false
+  queue: max # GitHub supports queued concurrency; actionlint v1.7.12 has not modeled it yet.
+
+env:
+  GO_VERSION: "1.26.5"
+  GORELEASER_VERSION: v2.17.1
+  GOTOOLCHAIN: local
+  PYTHON_VERSION: "3.13.14"
+  UV_VERSION: "0.12.3"
+
+jobs:
+  go:
+    name: Go gates
+    if: github.repository == 'gkze/process-compose'
+    uses: ./.github/workflows/go.yml
+
+  nix:
+    name: Nix gate
+    if: github.repository == 'gkze/process-compose'
+    uses: ./.github/workflows/nix.yml
+
+  rust:
+    name: Rust gate
+    if: github.repository == 'gkze/process-compose'
+    uses: ./.github/workflows/rust.yml
+
+  verify:
+    name: Verify release inputs
+    if: github.repository == 'gkze/process-compose'
+    runs-on: ubuntu-24.04
+    outputs:
+      upstream_commit: ${{ steps.provenance.outputs.upstream_commit }}
+      upstream_tag: ${{ steps.provenance.outputs.upstream_tag }}
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+
+      - name: Install pinned Python
+        run: uv python install "$PYTHON_VERSION"
+
+      - name: Test fork release tag policy
+        run: ./scripts/check-fork-release-tag_test.sh
+
+      - name: Test release artifact policy
+        run: ./scripts/check-release-artifacts_test.sh
+
+      - name: Test fork installer routing
+        run: ./scripts/get-pc_test.sh
+
+      - name: Validate fork release tag
+        id: provenance
+        run: |
+          upstream_tag="$(sed -n 's/^tag=//p' .upstream-base)"
+          upstream_base_ref="refs/remotes/upstream/tags/$upstream_tag"
+          git fetch --no-tags https://github.com/F1bonacc1/process-compose.git \
+            '+refs/heads/main:refs/remotes/upstream/main' \
+            "+refs/tags/$upstream_tag:$upstream_base_ref"
+          ./scripts/check-fork-release-tag.sh \
+            "$GITHUB_REF_NAME" \
+            "$GITHUB_SHA" \
+            refs/remotes/upstream/main \
+            "$upstream_base_ref"
+          upstream_commit="$(sed -n 's/^commit=//p' .upstream-base)"
+          printf 'upstream_commit=%s\n' "$upstream_commit" >> "$GITHUB_OUTPUT"
+          printf 'upstream_tag=%s\n' "$upstream_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Verify generated OpenAPI artifacts
+        run: make check-swag
+
+      - name: Run Go tests and live HTTP OpenAPI contract
+        env:
+          PC_OPENAPI_LIVE_CONFORMANCE: "1"
+          PC_SCHEMATHESIS_CONFORMANCE: "1"
+        run: go test -count=1 ./...
+
+      - name: Install pinned GoReleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: ${{ env.GORELEASER_VERSION }}
+          install-only: true
+
+      - name: Validate release configuration
+        run: goreleaser check .goreleaser.yaml
+
+      - name: Build release snapshot without credentials
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
+        run: goreleaser release --snapshot --clean --config .goreleaser.yaml
+
+      - name: Verify release artifact manifest
+        run: ./scripts/check-release-artifacts.sh dist
+
+      - name: Upload verified release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verified-release-artifacts
+          path: |
+            dist/process-compose_checksums.txt
+            dist/process-compose_darwin_amd64.tar.gz
+            dist/process-compose_darwin_arm64.tar.gz
+            dist/process-compose_linux_386.tar.gz
+            dist/process-compose_linux_amd64.tar.gz
+            dist/process-compose_linux_arm.tar.gz
+            dist/process-compose_linux_arm64.tar.gz
+            dist/process-compose_windows_amd64.zip
+            dist/process-compose_windows_arm64.zip
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 1
+          compression-level: 0
+
+  release:
+    name: Publish release
+    if: github.repository == 'gkze/process-compose'
+    needs: [go, nix, rust, verify]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # Required to create, verify, and publish this repository's release.
+    steps:
+      - name: Revalidate release tag and default branch targets
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          remote="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          tag_ref="refs/tags/$GITHUB_REF_NAME"
+          direct_target="$(git ls-remote --refs "$remote" "$tag_ref" | awk 'NR == 1 { print $1 } END { if (NR != 1) exit 1 }')"
+          peeled_target="$(git ls-remote "$remote" "$tag_ref^{}" | awk 'NR == 1 { print $1 } END { if (NR > 1) exit 1 }')"
+          remote_target="${peeled_target:-$direct_target}"
+          if [[ "$remote_target" != "$GITHUB_SHA" ]]; then
+            echo "Remote release tag $tag_ref points to $remote_target, want $GITHUB_SHA" >&2
+            exit 1
+          fi
+
+          branch_ref="refs/heads/${DEFAULT_BRANCH:?}"
+          branch_target="$(git ls-remote --refs "$remote" "$branch_ref" | awk 'NR == 1 { print $1 } END { if (NR != 1) exit 1 }')"
+          if [[ "$branch_target" != "$GITHUB_SHA" ]]; then
+            echo "Remote default branch $branch_ref points to $branch_target, want $GITHUB_SHA" >&2
+            echo "Push the fork commit to the default branch before creating its release tag." >&2
+            exit 1
+          fi
+
+      - name: Check out release verification scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Download verified release artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: verified-release-artifacts
+          path: dist
+
+      - name: Validate any existing published release
+        id: published
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_api="repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME"
+          response_file="$RUNNER_TEMP/existing-release.json"
+          error_file="$RUNNER_TEMP/release-query.err"
+          if gh api "$release_api" >"$response_file" 2>"$error_file"; then
+            release_id="$(jq -r '.id // empty' "$response_file")"
+            release_tag="$(jq -r '.tag_name // empty' "$response_file")"
+            release_draft="$(jq -r '.draft' "$response_file")"
+            release_prerelease="$(jq -r '.prerelease' "$response_file")"
+            if [[ ! "$release_id" =~ ^[0-9]+$ || "$release_tag" != "$GITHUB_REF_NAME" ]]; then
+              echo "Existing release identity does not match $GITHUB_REF_NAME." >&2
+              exit 1
+            fi
+            if [[ "$release_draft" == true ]]; then
+              echo "already_published=false" >>"$GITHUB_OUTPUT"
+              echo "Existing draft release $GITHUB_REF_NAME will be replaced with this run's verified assets."
+            elif [[ "$release_draft" == false && "$release_prerelease" == false ]]; then
+              ./scripts/check-release-artifacts.sh dist "$release_id"
+              echo "already_published=true" >>"$GITHUB_OUTPUT"
+              echo "Release $GITHUB_REF_NAME is already published with the exact verified assets; nothing to change."
+            else
+              echo "Existing release $GITHUB_REF_NAME has an unexpected draft or prerelease state." >&2
+              exit 1
+            fi
+          elif grep -Fq '(HTTP 404)' "$error_file"; then
+            echo "already_published=false" >>"$GITHUB_OUTPUT"
+            echo "No published release for $GITHUB_REF_NAME; a draft may be created or updated."
+          else
+            cat "$error_file" >&2
+            exit 1
+          fi
+
+      - name: Create draft release from verified artifacts
+        id: draft
+        if: steps.published.outputs.already_published != 'true'
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          tag_name: ${{ github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          previous_tag: ${{ needs.verify.outputs.upstream_tag }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          body: |
+            Fork release version lineage: upstream `${{ needs.verify.outputs.upstream_tag }}`. The exact branch point is upstream commit [`${{ needs.verify.outputs.upstream_commit }}`](https://github.com/F1bonacc1/process-compose/commit/${{ needs.verify.outputs.upstream_commit }}), as recorded in `.upstream-base`; it may include upstream commits newer than the lineage tag.
+
+            Compatibility note: the logs WebSocket now rejects omitted or empty process names and invalid `follow` values with a JSON `400` response.
+
+            The release workflow stages these verified assets in a draft and publishes it as the fork's latest release only after all Go, OpenAPI, Nix, Rust, and packaging gates pass.
+          files: |
+            dist/process-compose_checksums.txt
+            dist/process-compose_darwin_amd64.tar.gz
+            dist/process-compose_darwin_arm64.tar.gz
+            dist/process-compose_linux_386.tar.gz
+            dist/process-compose_linux_amd64.tar.gz
+            dist/process-compose_linux_arm.tar.gz
+            dist/process-compose_linux_arm64.tar.gz
+            dist/process-compose_windows_amd64.zip
+            dist/process-compose_windows_arm64.zip
+
+      - name: Verify draft release assets
+        if: steps.published.outputs.already_published != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.draft.outputs.id }}
+        run: |
+          release_api="repos/$GITHUB_REPOSITORY/releases/${RELEASE_ID:?}"
+          if [[ "$(gh api "$release_api" --jq '.draft')" != true ]]; then
+            echo "Release $GITHUB_REF_NAME is not a draft; refusing to publish it." >&2
+            exit 1
+          fi
+          if [[ "$(gh api "$release_api" --jq '.tag_name')" != "$GITHUB_REF_NAME" ]]; then
+            echo "Draft release does not belong to tag $GITHUB_REF_NAME." >&2
+            exit 1
+          fi
+          if [[ "$(gh api "$release_api" --jq '.prerelease')" != false ]]; then
+            echo "Draft release $GITHUB_REF_NAME is unexpectedly marked as a prerelease." >&2
+            exit 1
+          fi
+          ./scripts/check-release-artifacts.sh dist "$RELEASE_ID"
+
+      - name: Revalidate targets immediately before publication
+        if: steps.published.outputs.already_published != 'true'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          remote="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          tag_ref="refs/tags/$GITHUB_REF_NAME"
+          direct_target="$(git ls-remote --refs "$remote" "$tag_ref" | awk 'NR == 1 { print $1 } END { if (NR != 1) exit 1 }')"
+          peeled_target="$(git ls-remote "$remote" "$tag_ref^{}" | awk 'NR == 1 { print $1 } END { if (NR > 1) exit 1 }')"
+          remote_target="${peeled_target:-$direct_target}"
+          branch_ref="refs/heads/${DEFAULT_BRANCH:?}"
+          branch_target="$(git ls-remote --refs "$remote" "$branch_ref" | awk 'NR == 1 { print $1 } END { if (NR != 1) exit 1 }')"
+          if [[ "$remote_target" != "$GITHUB_SHA" || "$branch_target" != "$GITHUB_SHA" ]]; then
+            echo "Release tag or default branch moved after verification; refusing to publish." >&2
+            exit 1
+          fi
+
+      - name: Publish verified release as latest
+        if: steps.published.outputs.already_published != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.draft.outputs.id }}
+        run: |
+          release_api="repos/$GITHUB_REPOSITORY/releases/${RELEASE_ID:?}"
+          gh api --method PATCH "$release_api" \
+            -F draft=false \
+            -F prerelease=false \
+            -f make_latest=true >/dev/null
+
+          for attempt in 1 2 3 4 5; do
+            release_state="$(gh api "$release_api" --jq '[.draft, .prerelease, .tag_name] | @tsv' 2>/dev/null || true)"
+            latest_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.id' 2>/dev/null || true)"
+            if [[ "$release_state" == $'false\tfalse\t'"$GITHUB_REF_NAME" && "$latest_id" == "$RELEASE_ID" ]]; then
+              echo "Published $GITHUB_REF_NAME as the fork's latest release."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Published release $GITHUB_REF_NAME did not converge to the expected latest state." >&2
+          exit 1

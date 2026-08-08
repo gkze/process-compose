@@ -1,15 +1,15 @@
 version: 2
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-before:
-  hooks:
-    # You may remove this if you don't use go modules.
-    - go mod tidy
-    # you may remove this if you don't need go generate
-    # - go generate ./...
+project_name: process-compose
+
 builds:
-  - env:
+  - id: process-compose
+    binary: process-compose
+    dir: .
+    env:
       - CGO_ENABLED=0
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
     goos:
       - linux
       - windows
@@ -19,6 +19,8 @@ builds:
       - amd64
       - arm64
       - arm
+    goarm:
+      - "6"
     ignore:
       - goos: darwin
         goarch: "386"
@@ -28,99 +30,48 @@ builds:
         goarch: "386"
       - goos: windows
         goarch: arm
-    dir: ./
     ldflags:
-      - -X github.com/f1bonacc1/process-compose/src/config.Version={{.Tag}}
-      - -X github.com/f1bonacc1/process-compose/src/config.CheckForUpdates=true
-      - -X github.com/f1bonacc1/process-compose/src/config.Commit={{.ShortCommit}}
-      - -X github.com/f1bonacc1/process-compose/src/config.Date={{.CommitDate}}
+      - -X github.com/f1bonacc1/process-compose/src/config.Version={{ .Tag }}
+      - -X github.com/f1bonacc1/process-compose/src/config.CheckForUpdates=false
+      - -X github.com/f1bonacc1/process-compose/src/config.SelfUpdateEnabled=false
+      - -X github.com/f1bonacc1/process-compose/src/config.Commit={{ .ShortCommit }}
+      - -X github.com/f1bonacc1/process-compose/src/config.Date={{ .CommitDate }}
       - -s -w
+
 archives:
   - id: process-compose
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- .Os }}_
-      {{- .Arch }}
-
+    ids:
+      - process-compose
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    builds_info:
+      mtime: "{{ .CommitDate }}"
+    files:
+      - src: LICENSE
+        info:
+          mtime: "{{ .CommitDate }}"
+      - src: README.md
+        info:
+          mtime: "{{ .CommitDate }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 
 checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
+  algorithm: sha256
+
 snapshot:
-  version_template: "{{ .Version }}-SNAPSHOT-{{.ShortCommit}}"
-brews:
-  - name: process-compose
-    homepage: https://github.com/F1bonacc1/process-compose
-    repository:
-      owner: f1bonacc1
-      name: homebrew-tap
-    install: |-
-      bin.install "process-compose"
+  version_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
 changelog:
   sort: asc
   filters:
     exclude:
       - "^docs:"
       - "^test:"
+
 release:
-  draft: true
-  replace_existing_draft: false
-  disable: false
-
-announce:
-  discord:
-    # Whether its enabled or not.
-    enabled: true
-
-    # Message template to use while publishing.
-    #
-    # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'
-    # Templates: allowed
-    message_template: |
-      **New Release: Process Compose {{.Tag}}**
-      Process Compose {{.Tag}} is out.
-
-      What's new: {{.ReleaseURL}}
-
-      Thanks,
-      f1bonacc1
-
-    # Set author of the embed.
-    #
-    # Default: 'GoReleaser'
-    author: "f1bonacc1"
-
-    # Color code of the embed. You have to use decimal numeral system, not hexadecimal.
-    #
-    # Default: '3888754' (the grey-ish from GoReleaser)
-    color: ""
-
-    # URL to an image to use as the icon for the embed.
-    #
-    # Default: 'https://goreleaser.com/static/avatar.png'
-    icon_url: "https://avatars.githubusercontent.com/u/806740?v=4"
-  bluesky:
-    # Whether it's enabled or not.
-    enabled: true
-
-    # Message template to use while publishing.
-    #
-    # Default: '{{ .ProjectName }} {{ .Tag }} is out! Check it out at {{ .ReleaseURL }}'.
-    # Templates: allowed.
-    message_template: |
-      New Release: Process Compose {{.Tag}}
-      Process Compose {{.Tag}} is out.
-
-      What's new: {{.ReleaseURL}}
-
-      Thanks,
-      f1bonacc1
-
-    # The username of the account that will post
-    # to Bluesky
-    username: "processcompose.bsky.social"
-# modelines, feel free to remove those if you don't want/use them:
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+  disable: true

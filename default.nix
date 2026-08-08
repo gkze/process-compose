@@ -4,7 +4,7 @@ let pkg = "github.com/f1bonacc1/process-compose/src/config";
 in
 (buildGoModule.override { go = pkgs.go_1_26; }) rec {
   pname = "process-compose";
-  version = "1.120.0";
+  version = "1.120.0+gkze1";
   env.CGO_ENABLED = 0;
 
   src = lib.cleanSource ./.;
@@ -12,14 +12,16 @@ in
     "-X ${pkg}.Version=v${version}"
     "-X ${pkg}.Date=${date}"
     "-X ${pkg}.Commit=${commit}"
+    "-X ${pkg}.CheckForUpdates=false"
+    "-X ${pkg}.SelfUpdateEnabled=false"
     "-s"
     "-w"
   ];
 
   nativeBuildInputs = [ installShellFiles ];
+  nativeCheckInputs = [ pkgs.gitMinimal ];
 
-  vendorHash = "sha256-50N4IsSnUh3qmqqw+WACx2j0fMhLZKZdYK+7HAszxAY=";
-  #vendorHash = lib.fakeHash;
+  vendorHash = "sha256-IY43JoWNM8HMz8H+X80IRQ1vWjsqceWHgb/BkxzGyK0=";
 
   postInstall = ''
 
@@ -31,8 +33,8 @@ in
 
   meta = with lib; {
     description = "A simple and flexible scheduler and orchestrator to manage non-containerized applications";
-    homepage = "https://github.com/F1bonacc1/process-compose";
-    changelog = "https://github.com/F1bonacc1/process-compose/releases/tag/v${version}";
+    homepage = "https://github.com/gkze/process-compose";
+    changelog = "https://github.com/gkze/process-compose/releases/tag/v${version}";
     license = licenses.asl20;
     mainProgram = "process-compose";
   };

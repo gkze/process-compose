@@ -22,7 +22,7 @@ func TokenAuthMiddleware(token string) gin.HandlerFunc {
 				Str("method", c.Request.Method).
 				Str("path", c.Request.URL.Path).
 				Msg("failed login attempt: invalid or missing token")
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
 			return
 		}
 		c.Next()

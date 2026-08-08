@@ -44,7 +44,6 @@ func init() {
 			Date = setting.Value
 		}
 	}
-	CheckForUpdates = "true"
 }
 
 var (
@@ -52,6 +51,7 @@ var (
 	Commit            = "undefined"
 	Date              = "undefined"
 	CheckForUpdates   = "false"
+	SelfUpdateEnabled = "false"
 	License           = "Apache-2.0"
 	Discord           = "https://discord.gg/S4xgmRSHdC"
 	Author            = "Eugene Berger"

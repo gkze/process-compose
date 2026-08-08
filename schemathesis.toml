@@ -1,0 +1,49 @@
+color = false
+continue-on-failure = true
+max-redirects = 0
+request-timeout = 5.0
+workers = 1
+
+[cache]
+enabled = false
+
+[generation]
+allow-x00 = false
+codec = "ascii"
+deterministic = true
+mode = "all"
+with-security-parameters = false
+
+[phases]
+enabled = false
+
+[phases.coverage]
+enabled = true
+operation-ordering = "none"
+unexpected-methods = []
+
+[checks]
+enabled = false
+
+[checks.not_a_server_error]
+enabled = true
+
+[checks.status_code_conformance]
+enabled = true
+
+[checks.content_type_conformance]
+enabled = true
+
+[checks.response_headers_conformance]
+enabled = true
+
+[checks.response_schema_conformance]
+enabled = true
+
+[checks.negative_data_rejection]
+enabled = true
+
+[parameters]
+"path.name" = "fixture"
+"path.endOffset" = 0
+"path.limit" = 10

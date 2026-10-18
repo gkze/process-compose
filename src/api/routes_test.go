@@ -23,7 +23,7 @@ func TestWebSocketCrossOriginHandshakeReturnsDocumentedError(t *testing.T) {
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
 
-	document := loadOpenAPIDocument(t, filepath.Join(packageDirectory(t), "..", "docs", "swagger.json"))
+	document := loadOpenAPIDocument(t, filepath.Join(packageDirectory(t), openAPIDocumentFile))
 	tests := []struct {
 		operationID string
 		path        string
@@ -55,7 +55,7 @@ func TestWebSocketCrossOriginHandshakeReturnsDocumentedError(t *testing.T) {
 			if err := json.NewDecoder(response.Body).Decode(&errorResponse); err != nil {
 				t.Fatalf("cross-origin WebSocket handshake response is not JSON: %v", err)
 			}
-			if errorResponse.Error == "" {
+			if errorResponse.Message == "" {
 				t.Error("cross-origin WebSocket handshake response has an empty error")
 			}
 
@@ -87,7 +87,7 @@ func TestWebSocketUpgradeErrorsUseDocumentedJSONSchema(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &errorResponse); err != nil {
 		t.Fatalf("WebSocket upgrade response is not JSON: %v\n%s", err, response.Body.Bytes())
 	}
-	if errorResponse.Error == "" {
+	if errorResponse.Message == "" {
 		t.Errorf("WebSocket upgrade response has an empty error: %s", response.Body.Bytes())
 	}
 }
@@ -153,7 +153,7 @@ func TestWebSocketLogsRequiresProcessName(t *testing.T) {
 			if err := json.NewDecoder(response.Body).Decode(&errorResponse); err != nil {
 				t.Fatalf("request without a process name response is not JSON: %v", err)
 			}
-			if errorResponse.Error == "" {
+			if errorResponse.Message == "" {
 				t.Error("request without a process name response has an empty error")
 			}
 		})

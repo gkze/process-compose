@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
@@ -186,7 +187,7 @@ func TestFreshBinaryHTTPConformance(t *testing.T) {
 	repositoryRoot := filepath.Clean(filepath.Join(packageDirectory(t), "..", ".."))
 	revision := sourceRevision(t, repositoryRoot)
 	snapshotRoot, snapshotRevision := createSourceSnapshot(t, repositoryRoot)
-	documentPath := filepath.Join(snapshotRoot, "src", "docs", "swagger.json")
+	documentPath := filepath.Join(snapshotRoot, "src", "api", openAPIDocumentFile)
 	loader := openapi3.NewLoader()
 	document, err := loader.LoadFromFile(documentPath)
 	if err != nil {
@@ -209,7 +210,7 @@ func TestFreshBinaryHTTPConformance(t *testing.T) {
 	t.Cleanup(func() { running.stop(t) })
 
 	client := newLiveContractHTTPClient(5 * time.Second)
-	assertEmbeddedSwaggerInventory(t, client, running.baseURL, document)
+	assertServedOpenAPIDocument(t, client, running.baseURL, documentPath)
 
 	// Contract routing is host-agnostic during the harness because the freshly
 	// built binary binds an ephemeral port rather than the documented default.
@@ -775,51 +776,39 @@ func assertFreshBinaryRevision(t *testing.T, binaryPath, snapshotRevision, sourc
 	t.Logf("fresh binary provenance: source base %s, immutable snapshot %s", sourceRevision, snapshotRevision)
 }
 
-func assertEmbeddedSwaggerInventory(t *testing.T, client *http.Client, baseURL string, document *openapi3.T) {
+// assertServedOpenAPIDocument checks that the binary serves the committed
+// document, except for the server, which names the address it listens on.
+func assertServedOpenAPIDocument(t *testing.T, client *http.Client, baseURL, documentPath string) {
 	t.Helper()
-	response, err := client.Get(baseURL + "/swagger/doc.json")
+	response, err := client.Get(baseURL + "/openapi-3.0.json")
 	if err != nil {
-		t.Fatalf("read embedded Swagger from fresh binary: %v", err)
+		t.Fatalf("read OpenAPI document from fresh binary: %v", err)
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		t.Fatalf("read embedded Swagger: status %d", response.StatusCode)
+		t.Fatalf("read OpenAPI document: status %d", response.StatusCode)
 	}
-	var embedded struct {
-		Swagger  string                `json:"swagger"`
-		Security []map[string][]string `json:"security"`
-		Paths    map[string]map[string]struct {
-			OperationID string `json:"operationId"`
-		} `json:"paths"`
+	var served map[string]any
+	if err := json.NewDecoder(response.Body).Decode(&served); err != nil {
+		t.Fatalf("decode served OpenAPI document: %v", err)
 	}
-	if err := json.NewDecoder(response.Body).Decode(&embedded); err != nil {
-		t.Fatalf("decode embedded Swagger: %v", err)
-	}
-	if embedded.Swagger != "2.0" {
-		t.Errorf("fresh binary embedded contract version = %q, want Swagger 2.0", embedded.Swagger)
-	}
-	embeddedSecurity, err := json.Marshal(embedded.Security)
+	committedJSON, err := os.ReadFile(documentPath)
 	if err != nil {
-		t.Fatalf("encode embedded Swagger security: %v", err)
+		t.Fatalf("read committed OpenAPI document: %v", err)
 	}
-	generatedSecurity, err := json.Marshal(document.Security)
-	if err != nil {
-		t.Fatalf("encode generated OpenAPI security: %v", err)
-	}
-	if !bytes.Equal(embeddedSecurity, generatedSecurity) {
-		t.Errorf("fresh binary embedded security = %s, generated OpenAPI security = %s", embeddedSecurity, generatedSecurity)
+	var committed map[string]any
+	if err := json.Unmarshal(committedJSON, &committed); err != nil {
+		t.Fatalf("decode committed OpenAPI document: %v", err)
 	}
 
-	embeddedInventory := make([]string, 0)
-	for path, pathItem := range embedded.Paths {
-		for method, operation := range pathItem {
-			embeddedInventory = append(embeddedInventory, strings.ToUpper(method)+" "+path+" "+operation.OperationID)
-		}
+	wantServers := []any{map[string]any{"url": baseURL + "/"}}
+	if !reflect.DeepEqual(served["servers"], wantServers) {
+		t.Errorf("served OpenAPI servers = %v, want %v", served["servers"], wantServers)
 	}
-	sort.Strings(embeddedInventory)
-	generatedInventory := operationInventory(document)
-	if strings.Join(embeddedInventory, "\n") != strings.Join(generatedInventory, "\n") {
-		t.Errorf("fresh binary embedded Swagger inventory differs from generated OpenAPI\nembedded:\n%s\ngenerated:\n%s", strings.Join(embeddedInventory, "\n"), strings.Join(generatedInventory, "\n"))
+	delete(served, "servers")
+	delete(committed, "servers")
+	if !reflect.DeepEqual(served, committed) {
+		t.Errorf("fresh binary serves an OpenAPI document that differs from %s", documentPath)
 	}
 }
 

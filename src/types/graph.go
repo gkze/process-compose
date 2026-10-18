@@ -12,7 +12,7 @@ type DependencyNode struct {
 	Name      string                    `json:"name" yaml:"name"`
 	Status    string                    `json:"process_status" yaml:"process_status"`
 	IsReady   string                    `json:"is_ready" yaml:"is_ready"`
-	DependsOn map[string]DependencyLink `json:"depends_on,omitempty" yaml:"depends_on,omitempty" swaggertype:"object"`
+	DependsOn map[string]DependencyLink `json:"depends_on,omitempty" yaml:"depends_on,omitempty"`
 }
 
 // DependencyLink wraps a node with the dependency condition

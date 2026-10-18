@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/f1bonacc1/process-compose/src/app"
 	"github.com/f1bonacc1/process-compose/src/pclog"
 	"github.com/gin-gonic/gin"
@@ -24,25 +25,56 @@ func writeWebSocketUpgradeError(writer http.ResponseWriter, _ *http.Request, sta
 	writer.Header().Set("Sec-Websocket-Version", "13")
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
-	if err := json.NewEncoder(writer).Encode(ErrorResponse{Error: reason.Error()}); err != nil {
+	if err := json.NewEncoder(writer).Encode(ErrorResponse{Message: reason.Error()}); err != nil {
 		log.Error().Err(err).Msg("failed to write WebSocket upgrade error")
 	}
 }
 
-// @Schemes
-// @Id                    LogsStream
-// @Summary               Stream process logs over WebSocket
-// @Description           Upgrades HTTP to WebSocket and streams JSON log messages. Each message is api.LogMessage.
-// @Tags                  Process
-// @Produce               json
-// @Param                 name   query   string true  "Comma-separated process names to stream" minlength(1)
-// @Param                 offset query   int    true  "Offset from the end of the log"
-// @Param                 follow query   bool   false "If true, continue streaming new lines" default(false)
-// @Success               101 "Switching Protocols"
-// @Failure               400 {object} api.ErrorResponse "Invalid name, offset, follow, or WebSocket upgrade request"
-// @Failure               401 {object} api.ErrorResponse "API token missing or invalid before upgrade"
-// @Failure               403 {object} api.ErrorResponse "Cross-origin WebSocket upgrade request rejected"
-// @Router                /process/logs/ws [get]
+// logsStreamOperation documents HandleLogsStream, which is a plain Gin route
+// because huma does not serve WebSocket upgrades.
+func logsStreamOperation(humaAPI huma.API) *huma.Operation {
+	minLength := 1
+	return &huma.Operation{
+		OperationID: "LogsStream",
+		Method:      http.MethodGet,
+		Path:        "/process/logs/ws",
+		Tags:        []string{"Process"},
+		Summary:     "Stream process logs over WebSocket",
+		Description: "Upgrades HTTP to WebSocket and streams JSON log messages. Each message is api.LogMessage.",
+		Parameters: []*huma.Param{
+			{
+				Name: "name", In: "query", Required: true,
+				Description: "Comma-separated process names to stream",
+				// at least one name, which a list of commas alone does not have
+				Schema: &huma.Schema{Type: huma.TypeString, MinLength: &minLength, Pattern: "[^,]"},
+			},
+			{
+				Name: "offset", In: "query", Required: true,
+				Description: "Offset from the end of the log",
+				Schema:      &huma.Schema{Type: huma.TypeInteger},
+			},
+			{
+				Name: "follow", In: "query",
+				Description: "If true, continue streaming new lines",
+				Schema:      &huma.Schema{Type: huma.TypeBoolean, Default: false},
+			},
+		},
+		Responses: map[string]*huma.Response{
+			"101": {Description: "Switching Protocols"},
+			"400": errorResponse(humaAPI, "Invalid name, offset, follow, or WebSocket upgrade request"),
+			"401": errorResponse(humaAPI, "API token missing or invalid before upgrade"),
+			"403": errorResponse(humaAPI, "Cross-origin WebSocket upgrade request rejected"),
+		},
+	}
+}
+
+// documentWebSocketOperations adds the WebSocket routes to the OpenAPI
+// document. The document covers their HTTP handshake, not the message frames.
+func documentWebSocketOperations(humaAPI huma.API) {
+	humaAPI.OpenAPI().AddOperation(logsStreamOperation(humaAPI))
+	humaAPI.OpenAPI().AddOperation(statesStreamOperation(humaAPI))
+}
+
 func (api *PcApi) HandleLogsStream(c *gin.Context) {
 	processNamesStr := c.Query("name")
 	processNames := strings.Split(processNamesStr, ",")
@@ -54,17 +86,17 @@ func (api *PcApi) HandleLogsStream(c *gin.Context) {
 		}
 	}
 	if !hasProcessName {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "at least one process name is required"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Message: "at least one process name is required"})
 		return
 	}
 	follow, err := strconv.ParseBool(c.DefaultQuery("follow", "false"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid follow value: " + err.Error()})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Message: "invalid follow value: " + err.Error()})
 		return
 	}
 	endOffset, err := strconv.Atoi(c.Query("offset"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Message: err.Error()})
 		return
 	}
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)

@@ -22,7 +22,7 @@ ifeq ($(OS),Windows_NT)
 	RM = cmd /C del /Q /F
 endif
 
-.PHONY: setup test run testrace docs schema
+.PHONY: setup test run testrace docs schema openapi
 
 buildrun: build run
 
@@ -31,16 +31,15 @@ setup:
 
 ci: setup build testrace lint build-nix
 
-swag: setup swag2op ## Generate docs from swagger attributes in the code
-	$(SWAG2OP_GEN) init --dir src --output src/docs -g api/pc_api.go --openapiOutputDir src/docs --parseDependency --parseInternal
-	go run ./scripts/postprocess-openapi.go src/docs
+openapi: ## Generate the HTTP API OpenAPI document from the registered operations
+	go run ./scripts/generate-openapi.go
 
-.PHONY: check-swag
-check-swag: setup swag2op ## Verify pinned OpenAPI generation is deterministic and artifacts are current
-	./scripts/check-openapi-generation.sh "$(SWAG2OP_GEN)" "$(SWAG2OP_VERSION)"
+.PHONY: check-openapi
+check-openapi: ## Verify the committed OpenAPI document matches the registered operations
+	go test ./src/api -run '^TestOpenAPIDocumentIsCurrent$$' -count=1
 
 .PHONY: check-openapi-contract
-check-openapi-contract: check-swag ## Verify source inputs and a freshly built binary against generated OpenAPI
+check-openapi-contract: check-openapi ## Verify a freshly built binary against the generated OpenAPI document
 	PC_OPENAPI_LIVE_CONFORMANCE=1 PC_SCHEMATHESIS_CONFORMANCE=1 go test ./src/api -count=1
 
 build:
@@ -119,23 +118,7 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
-SWAG2OP_VERSION ?= v1.1.0
-SWAG2OP_GEN ?= $(LOCALBIN)/swag2op-$(SWAG2OP_VERSION)
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
-
-.PHONY: swag2op
-swag2op: $(SWAG2OP_GEN) ## Download swag2op locally if necessary.
-$(SWAG2OP_GEN): $(LOCALBIN)
-	@set -eu; \
-	temp_gobin=$$(mktemp -d "$(LOCALBIN)/.swag2op-$(SWAG2OP_VERSION).XXXXXX"); \
-	trap 'rm -rf -- "$$temp_gobin"' EXIT; \
-	GOBIN="$$temp_gobin" go install github.com/zxmfke/swagger2openapi3/cmd/swag2op@$(SWAG2OP_VERSION); \
-	actual_version=$$(go version -m "$$temp_gobin/swag2op" | awk '$$1 == "mod" && $$2 == "github.com/zxmfke/swagger2openapi3" { print $$3 }'); \
-	if [ "$$actual_version" != "$(SWAG2OP_VERSION)" ]; then \
-		echo "swag2op module version is $$actual_version, want $(SWAG2OP_VERSION)" >&2; \
-		exit 1; \
-	fi; \
-	mv -f "$$temp_gobin/swag2op" "$(SWAG2OP_GEN)"
 
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.

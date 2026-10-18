@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/f1bonacc1/process-compose/src/app"
-	"github.com/f1bonacc1/process-compose/src/docs"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 )
@@ -15,7 +14,7 @@ import (
 const EnvDebugMode = "PC_DEBUG_MODE"
 
 func StartHttpServerWithUnixSocket(useLogger bool, unixSocket string, project app.IProject) (*http.Server, error) {
-	router := getRouter(useLogger, project)
+	router := getRouter(useLogger, project, DefaultServerURL)
 	log.Info().Msgf("start UDS http server listening %s", unixSocket)
 
 	// Check if the unix socket is already in use
@@ -48,17 +47,15 @@ func StartHttpServerWithUnixSocket(useLogger bool, unixSocket string, project ap
 }
 
 func StartHttpServerWithTCP(useLogger bool, address string, port int, project app.IProject) (*http.Server, error) {
-	router := getRouter(useLogger, project)
 	endPoint := fmt.Sprintf("%s:%d", address, port)
+	// The served OpenAPI document names the address and port the server listens on.
+	router := getRouter(useLogger, project, fmt.Sprintf("http://%s/", endPoint))
 	log.Info().Msgf("start http server listening %s", endPoint)
 
 	server := &http.Server{
 		Addr:    endPoint,
 		Handler: router.Handler(),
 	}
-
-	// Update swagger address and port dynamically based on the provided address and port
-	docs.SwaggerInfo.Host = fmt.Sprintf("%s:%d", address, port)
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -69,10 +66,10 @@ func StartHttpServerWithTCP(useLogger bool, address string, port int, project ap
 	return server, nil
 }
 
-func getRouter(useLogger bool, project app.IProject) *gin.Engine {
+func getRouter(useLogger bool, project app.IProject, serverURL string) *gin.Engine {
 	if os.Getenv(EnvDebugMode) == "" {
 		gin.SetMode(gin.ReleaseMode)
 		useLogger = false
 	}
-	return InitRoutes(useLogger, NewPcApi(project))
+	return InitRoutes(useLogger, NewPcApi(project), serverURL)
 }

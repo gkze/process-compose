@@ -7,7 +7,7 @@ edition = "2021"
 include = [
   "src/**",
   "Cargo.toml",
-  "../../src/docs/swagger.json",
+  "../../src/api/openapi.json",
   "../../schemas/process-compose-schema.json",
   "../../README.md",
 ]

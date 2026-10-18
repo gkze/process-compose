@@ -1,0 +1,2544 @@
+{
+  "components": {
+    "schemas": {
+      "api.ErrorResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "api.LogsResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "logs": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "api.NameResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "api.ProjectNameResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "projectName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "api.SendKeysRequest": {
+        "additionalProperties": true,
+        "properties": {
+          "keys": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "api.StatusResponse": {
+        "additionalProperties": true,
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "command.ShellConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "elevatedShellArg": {
+            "type": "string"
+          },
+          "elevatedShellCmd": {
+            "type": "string"
+          },
+          "shellArgument": {
+            "type": "string"
+          },
+          "shellCommand": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "health.ExecProbe": {
+        "additionalProperties": true,
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "workingDir": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "health.HttpProbe": {
+        "additionalProperties": true,
+        "properties": {
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "host": {
+            "type": "string"
+          },
+          "numPort": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port": {
+            "type": "string"
+          },
+          "scheme": {
+            "type": "string"
+          },
+          "statusCode": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "health.Probe": {
+        "additionalProperties": true,
+        "properties": {
+          "exec": {
+            "$ref": "#/components/schemas/health.ExecProbe"
+          },
+          "failureThreshold": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "httpGet": {
+            "$ref": "#/components/schemas/health.HttpProbe"
+          },
+          "initialDelay": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "periodSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "successThreshold": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "timeoutSeconds": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "types.DependencyGraph": {
+        "additionalProperties": true,
+        "properties": {
+          "nodes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/types.DependencyNode"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "types.DependencyLink": {
+        "additionalProperties": true,
+        "properties": {
+          "dependency_type": {
+            "type": "string"
+          },
+          "depends_on": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/types.DependencyLink"
+            },
+            "type": "object"
+          },
+          "is_ready": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "process_status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.DependencyNode": {
+        "additionalProperties": true,
+        "properties": {
+          "depends_on": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/types.DependencyLink"
+            },
+            "type": "object"
+          },
+          "is_ready": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "process_status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.LogRotationConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "compress": {
+            "type": "boolean"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "maxAge": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxBackups": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "maxSize": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "types.LoggerConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "addTimestamp": {
+            "type": "boolean"
+          },
+          "disableJSON": {
+            "type": "boolean"
+          },
+          "fieldsOrder": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "flushEachLine": {
+            "type": "boolean"
+          },
+          "noColor": {
+            "type": "boolean"
+          },
+          "noMetadata": {
+            "type": "boolean"
+          },
+          "rotation": {
+            "$ref": "#/components/schemas/types.LogRotationConfig"
+          },
+          "timestampFormat": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.MCPArgument": {
+        "additionalProperties": true,
+        "properties": {
+          "default": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "integer"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.MCPProcessConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "arguments": {
+            "items": {
+              "$ref": "#/components/schemas/types.MCPArgument"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "timeout": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "tool",
+              "resource"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.MCPServerConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "exposeControlTools": {
+            "type": "boolean"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "timeout": {
+            "type": "string"
+          },
+          "transport": {
+            "type": "string"
+          },
+          "trustedHosts": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "types.MemoryState": {
+        "additionalProperties": true,
+        "properties": {
+          "allocated": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "gcCycles": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "systemMemory": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalAllocated": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allocated",
+          "totalAllocated",
+          "systemMemory",
+          "gcCycles"
+        ],
+        "type": "object"
+      },
+      "types.ProcessConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "command": {
+            "type": "string"
+          },
+          "dependsOn": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/types.ProcessDependency"
+            },
+            "type": "object"
+          },
+          "description": {
+            "type": "string"
+          },
+          "disableAnsiColors": {
+            "type": "boolean"
+          },
+          "disableCommandRendering": {
+            "type": "boolean"
+          },
+          "disableDotEnv": {
+            "type": "boolean"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "entrypoint": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "envFile": {
+            "type": "string"
+          },
+          "environment": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "extends": {
+            "type": "string"
+          },
+          "extensions": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "isDaemon": {
+            "type": "boolean"
+          },
+          "isDisabled": {
+            "type": "string"
+          },
+          "isElevated": {
+            "type": "boolean"
+          },
+          "isForeground": {
+            "type": "boolean"
+          },
+          "isInteractive": {
+            "type": "boolean"
+          },
+          "isTty": {
+            "type": "boolean"
+          },
+          "launchTimeout": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "livenessProbe": {
+            "$ref": "#/components/schemas/health.Probe"
+          },
+          "logLocation": {
+            "type": "string"
+          },
+          "loggerConfig": {
+            "$ref": "#/components/schemas/types.LoggerConfig"
+          },
+          "mcp": {
+            "$ref": "#/components/schemas/types.MCPProcessConfig"
+          },
+          "monitorFor": {
+            "enum": [
+              0,
+              1,
+              2
+            ],
+            "type": "integer"
+          },
+          "monitorSilenceThreshold": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "description": "Namespace(s) the process belongs to (string or list of strings, default: \"default\")",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "originalConfig": {
+            "type": "string"
+          },
+          "readinessProbe": {
+            "$ref": "#/components/schemas/health.Probe"
+          },
+          "readyLogLine": {
+            "type": "string"
+          },
+          "replicaName": {
+            "type": "string"
+          },
+          "replicaNum": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "replicas": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "restartPolicy": {
+            "$ref": "#/components/schemas/types.RestartPolicyConfig"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/types.ScheduleConfig"
+          },
+          "shutDownParams": {
+            "$ref": "#/components/schemas/types.ShutDownParams"
+          },
+          "successExitCodes": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "truncateLog": {
+            "type": "boolean"
+          },
+          "vars": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "watch": {
+            "$ref": "#/components/schemas/types.WatchConfig"
+          },
+          "workingDir": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.ProcessDependency": {
+        "additionalProperties": true,
+        "properties": {
+          "condition": {
+            "enum": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "type": "integer"
+          },
+          "extensions": {
+            "additionalProperties": {},
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "types.ProcessPorts": {
+        "additionalProperties": true,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tcp_ports": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "udp_ports": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "nullable": true,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "types.ProcessState": {
+        "additionalProperties": true,
+        "properties": {
+          "age": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cpu": {
+            "format": "double",
+            "type": "number"
+          },
+          "exit_code": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "has_ready_probe": {
+            "type": "boolean"
+          },
+          "is_elevated": {
+            "type": "boolean"
+          },
+          "is_ready": {
+            "type": "string"
+          },
+          "is_running": {
+            "type": "boolean"
+          },
+          "is_watched": {
+            "type": "boolean"
+          },
+          "last_activity_time": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "mem": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "description": "Namespace(s) the process belongs to (string or list of strings, default: \"default\")",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "next_run_time": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "password_provided": {
+            "type": "boolean"
+          },
+          "pid": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "process_end_time": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "process_ready_time": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "process_start_time": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "restarts": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "success_exit_codes": {
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "system_time": {
+            "type": "string"
+          },
+          "watch_trigger_path": {
+            "type": "string"
+          },
+          "watch_trigger_time": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.ProcessesState": {
+        "additionalProperties": true,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/types.ProcessState"
+            },
+            "nullable": true,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "types.Project": {
+        "additionalProperties": true,
+        "properties": {
+          "disableEnvExpansion": {
+            "type": "boolean"
+          },
+          "dotEnvVars": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "envCommands": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "envFileNames": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "environment": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "extendsProject": {
+            "type": "string"
+          },
+          "extensions": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "fileNames": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "isOrderedShutdown": {
+            "type": "boolean"
+          },
+          "isStrict": {
+            "type": "boolean"
+          },
+          "isTuiDisabled": {
+            "type": "boolean"
+          },
+          "logFormat": {
+            "type": "string"
+          },
+          "logLength": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "logLevel": {
+            "type": "string"
+          },
+          "logLocation": {
+            "type": "string"
+          },
+          "loggerConfig": {
+            "$ref": "#/components/schemas/types.LoggerConfig"
+          },
+          "mcpServer": {
+            "$ref": "#/components/schemas/types.MCPServerConfig"
+          },
+          "name": {
+            "type": "string"
+          },
+          "processes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/types.ProcessConfig"
+            },
+            "type": "object"
+          },
+          "shellConfig": {
+            "$ref": "#/components/schemas/command.ShellConfig"
+          },
+          "vars": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.ProjectState": {
+        "additionalProperties": true,
+        "properties": {
+          "fileNames": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "memoryState": {
+            "$ref": "#/components/schemas/types.MemoryState"
+          },
+          "processNum": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "runningProcessNum": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "startTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "upTime": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileNames",
+          "upTime",
+          "startTime",
+          "processNum",
+          "runningProcessNum",
+          "userName",
+          "version",
+          "projectName"
+        ],
+        "type": "object"
+      },
+      "types.RestartPolicyConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "backoffSeconds": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "exitOnEnd": {
+            "type": "boolean"
+          },
+          "exitOnSkipped": {
+            "type": "boolean"
+          },
+          "maxRestarts": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "restart": {
+            "enum": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "types.ScheduleConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "cron": {
+            "type": "string"
+          },
+          "interval": {
+            "type": "string"
+          },
+          "max_concurrent": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "run_on_start": {
+            "type": "boolean"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "types.ShutDownParams": {
+        "additionalProperties": true,
+        "properties": {
+          "parentOnly": {
+            "type": "boolean"
+          },
+          "sendKeys": {
+            "type": "string"
+          },
+          "shutDownCommand": {
+            "type": "string"
+          },
+          "shutDownTimeout": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "signal": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "types.WatchConfig": {
+        "additionalProperties": true,
+        "properties": {
+          "buffer_size": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cascade": {
+            "type": "boolean"
+          },
+          "debounce": {
+            "type": "string"
+          },
+          "disable_default_excludes": {
+            "type": "boolean"
+          },
+          "max_entries": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "paths": {
+            "items": {
+              "$ref": "#/components/schemas/types.WatchPath"
+            },
+            "nullable": true,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "types.WatchPath": {
+        "additionalProperties": true,
+        "properties": {
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "include": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "ApiTokenAuth": {
+        "description": "Required when API token authentication is configured; otherwise no API key is required.",
+        "in": "header",
+        "name": "X-PC-Token-Key",
+        "type": "apiKey"
+      }
+    }
+  },
+  "externalDocs": {
+    "url": "https://f1bonacc1.github.io/process-compose/"
+  },
+  "info": {
+    "contact": {
+      "name": "Process Compose Discord Channel",
+      "url": "https://discord.gg/S4xgmRSHdC"
+    },
+    "description": "This is a sample Process Compose server.",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "title": "Process Compose API",
+    "version": "1.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/graph": {
+      "get": {
+        "description": "Returns the process dependency graph with current status",
+        "operationId": "GetDependencyGraph",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.DependencyGraph"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Get dependency graph",
+        "tags": [
+          "Graph"
+        ]
+      }
+    },
+    "/live": {
+      "get": {
+        "description": "Check if server is responding",
+        "operationId": "IsAlive",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.StatusResponse"
+                }
+              }
+            },
+            "description": "Alive Status"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Liveness Check",
+        "tags": [
+          "Liveness"
+        ]
+      }
+    },
+    "/namespace/restart/{name}": {
+      "post": {
+        "description": "Restarts the namespace",
+        "operationId": "RestartNamespace",
+        "parameters": [
+          {
+            "description": "Namespace Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Namespace Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Restarted Namespace Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Restart a namespace",
+        "tags": [
+          "Namespace"
+        ]
+      }
+    },
+    "/namespace/start/{name}": {
+      "post": {
+        "description": "Starts the namespace",
+        "operationId": "StartNamespace",
+        "parameters": [
+          {
+            "description": "Namespace Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Namespace Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Started Namespace Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Start a namespace",
+        "tags": [
+          "Namespace"
+        ]
+      }
+    },
+    "/namespace/stop/{name}": {
+      "post": {
+        "description": "Stops the namespace",
+        "operationId": "StopNamespace",
+        "parameters": [
+          {
+            "description": "Namespace Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Namespace Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Stopped Namespace Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Stop a namespace",
+        "tags": [
+          "Namespace"
+        ]
+      }
+    },
+    "/namespaces": {
+      "get": {
+        "description": "Retrieves all unique namespaces",
+        "operationId": "GetNamespaces",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "nullable": true,
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Namespaces List"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Get all namespaces",
+        "tags": [
+          "Namespace"
+        ]
+      }
+    },
+    "/process": {
+      "post": {
+        "description": "Update process",
+        "operationId": "UpdateProcess",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/types.ProcessConfig"
+              }
+            }
+          },
+          "description": "Process configuration to update",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.ProcessConfig"
+                }
+              }
+            },
+            "description": "Updated Process Config"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Updates process configuration",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/info/{name}": {
+      "get": {
+        "description": "Retrieves the given process and its config",
+        "operationId": "GetProcessInfo",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.ProcessConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Get process config",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/logs/ws": {
+      "get": {
+        "description": "Upgrades HTTP to WebSocket and streams JSON log messages. Each message is api.LogMessage.",
+        "operationId": "LogsStream",
+        "parameters": [
+          {
+            "description": "Comma-separated process names to stream",
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "pattern": "[^,]",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Offset from the end of the log",
+            "in": "query",
+            "name": "offset",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "If true, continue streaming new lines",
+            "in": "query",
+            "name": "follow",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid name, offset, follow, or WebSocket upgrade request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid before upgrade"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-origin WebSocket upgrade request rejected"
+          }
+        },
+        "summary": "Stream process logs over WebSocket",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/logs/{name}": {
+      "delete": {
+        "description": "Truncates the process logs",
+        "operationId": "TruncateProcessLogs",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Truncated Process Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Truncate process logs",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/logs/{name}/{endOffset}/{limit}": {
+      "get": {
+        "description": "Retrieves the process logs",
+        "operationId": "GetProcessLogs",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Offset from the end of the log",
+            "in": "path",
+            "name": "endOffset",
+            "required": true,
+            "schema": {
+              "description": "Offset from the end of the log",
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Limit of lines to get (0 will get all the lines till the end)",
+            "in": "path",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "description": "Limit of lines to get (0 will get all the lines till the end)",
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.LogsResponse"
+                }
+              }
+            },
+            "description": "Process Logs"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Get process logs",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/ports/{name}": {
+      "get": {
+        "description": "Retrieves process open ports",
+        "operationId": "GetProcessPorts",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.ProcessPorts"
+                }
+              }
+            },
+            "description": "Process Ports"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Get process ports",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/restart/{name}": {
+      "post": {
+        "description": "Restarts the process",
+        "operationId": "RestartProcess",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Restarted Process Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Restart a process",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/scale/{name}/{scale}": {
+      "patch": {
+        "description": "Scale a process",
+        "operationId": "ScaleProcess",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "New amount of process replicas",
+            "in": "path",
+            "name": "scale",
+            "required": true,
+            "schema": {
+              "description": "New amount of process replicas",
+              "format": "int64",
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Scaled Process Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Scale a process to a given replicas count",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/send-keys/{name}": {
+      "post": {
+        "description": "Sends keystroke(s) to an interactive process's stdin",
+        "operationId": "SendProcessKeys",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/api.SendKeysRequest"
+              }
+            }
+          },
+          "description": "Keys to send",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Process Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Send keys to an interactive process",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/signal/{name}/{signal}": {
+      "patch": {
+        "description": "Sends a POSIX signal to the process",
+        "operationId": "SendSignal",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Signal Number",
+            "in": "path",
+            "name": "signal",
+            "required": true,
+            "schema": {
+              "description": "Signal Number",
+              "format": "int64",
+              "maximum": 22,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Signaled Process Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Signal a process",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/start/{name}": {
+      "post": {
+        "description": "Starts the process if the state is not 'running' or 'pending'",
+        "operationId": "StartProcess",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Started Process Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Start a process",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/states/ws": {
+      "get": {
+        "description": "Upgrades HTTP to WebSocket and streams JSON events. On connect, an event with snapshot=true is sent for every (filtered) process; subsequently, every Status or Health transition (and final exit info) produces one event.",
+        "operationId": "StatesStream",
+        "parameters": [
+          {
+            "description": "Comma-separated process names to subscribe to. If omitted, subscribes to all processes.",
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid WebSocket upgrade request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid before upgrade"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Cross-origin WebSocket upgrade request rejected"
+          }
+        },
+        "summary": "Stream process state changes over WebSocket",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/stop/{name}": {
+      "patch": {
+        "description": "Sends kill signal to the process",
+        "operationId": "StopProcess",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.NameResponse"
+                }
+              }
+            },
+            "description": "Stopped Process Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Stop a process",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/process/{name}": {
+      "get": {
+        "description": "Retrieves the given process and its status",
+        "operationId": "GetProcess",
+        "parameters": [
+          {
+            "description": "Process Name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "Process Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.ProcessState"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Get process state",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/processes": {
+      "get": {
+        "description": "Retrieves all the configured processes and their status",
+        "operationId": "GetProcesses",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.ProcessesState"
+                }
+              }
+            },
+            "description": "Processes Status"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Get all processes",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/processes/stop": {
+      "patch": {
+        "description": "Sends kill signal to the processes list",
+        "operationId": "StopProcesses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true,
+                "type": "array"
+              }
+            }
+          },
+          "description": "Processes Names",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Stopped Processes Names"
+          },
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Stopped Processes Names"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Stop processes",
+        "tags": [
+          "Process"
+        ]
+      }
+    },
+    "/project": {
+      "post": {
+        "description": "Update running project",
+        "operationId": "UpdateProject",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/types.Project"
+              }
+            }
+          },
+          "description": "Project configuration to update",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Update Project Status"
+          },
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Update Project Status"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Updates running processes",
+        "tags": [
+          "Project"
+        ]
+      }
+    },
+    "/project/configuration": {
+      "post": {
+        "description": "Reload project state from config",
+        "operationId": "ReloadProject",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Update Project Status"
+          },
+          "207": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Update Project Status"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Reload project",
+        "tags": [
+          "Project"
+        ]
+      }
+    },
+    "/project/name": {
+      "get": {
+        "description": "Get process compose project name",
+        "operationId": "GetProjectName",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ProjectNameResponse"
+                }
+              }
+            },
+            "description": "Project Name"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Get Project Name",
+        "tags": [
+          "ProjectName"
+        ]
+      }
+    },
+    "/project/state": {
+      "get": {
+        "description": "Retrieves project state information",
+        "operationId": "GetProjectState",
+        "parameters": [
+          {
+            "description": "Include runtime memory statistics",
+            "explode": false,
+            "in": "query",
+            "name": "withMemory",
+            "schema": {
+              "default": false,
+              "description": "Include runtime memory statistics",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.ProjectState"
+                }
+              }
+            },
+            "description": "Project State"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get project state",
+        "tags": [
+          "Project"
+        ]
+      }
+    },
+    "/project/stop": {
+      "post": {
+        "description": "Shuts down the server",
+        "operationId": "ShutDownProject",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.StatusResponse"
+                }
+              }
+            },
+            "description": "Stopped Server"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/api.ErrorResponse"
+                }
+              }
+            },
+            "description": "API token missing or invalid"
+          }
+        },
+        "summary": "Stops all the processes and the server",
+        "tags": [
+          "Project"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiTokenAuth": []
+    },
+    {}
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:8080/"
+    }
+  ]
+}

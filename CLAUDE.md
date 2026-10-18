@@ -15,7 +15,7 @@ make testrace           # Run tests with race detector
 make testrace-clean     # Clear test cache, then run with race detector
 make lint               # Run golangci-lint (downloads to ./bin/ if needed)
 make coverhtml          # Generate HTML coverage report
-make swag               # Regenerate Swagger/OpenAPI docs
+make openapi            # Regenerate the OpenAPI document (src/api/openapi.json)
 make schema             # Regenerate JSON schema
 make docs               # Regenerate CLI documentation
 ```

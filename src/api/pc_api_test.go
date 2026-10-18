@@ -20,7 +20,7 @@ func init() {
 }
 
 func setupRouter(mock *mockProject) *gin.Engine {
-	return InitRoutes(false, NewPcApi(mock))
+	return InitRoutes(false, NewPcApi(mock), DefaultServerURL)
 }
 
 func performRequest(r *gin.Engine, method, path string, body string) *httptest.ResponseRecorder {

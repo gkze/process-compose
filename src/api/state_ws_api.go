@@ -3,11 +3,13 @@ package api
 import (
 	"errors"
 	"net"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/f1bonacc1/process-compose/src/app"
 	"github.com/f1bonacc1/process-compose/src/pclog"
 	"github.com/f1bonacc1/process-compose/src/types"
@@ -65,18 +67,30 @@ func (o *stateWsObserver) signalClose() {
 	}
 }
 
-// @Schemes
-// @Id                    StatesStream
-// @Summary               Stream process state changes over WebSocket
-// @Description           Upgrades HTTP to WebSocket and streams JSON events. On connect, an event with snapshot=true is sent for every (filtered) process; subsequently, every Status or Health transition (and final exit info) produces one event.
-// @Tags                  Process
-// @Produce               json
-// @Param                 name query string false "Comma-separated process names to subscribe to. If omitted, subscribes to all processes."
-// @Success               101 "Switching Protocols"
-// @Failure               400 {object} api.ErrorResponse "Invalid WebSocket upgrade request"
-// @Failure               401 {object} api.ErrorResponse "API token missing or invalid before upgrade"
-// @Failure               403 {object} api.ErrorResponse "Cross-origin WebSocket upgrade request rejected"
-// @Router                /process/states/ws [get]
+// statesStreamOperation documents HandleStatesStream, which is a plain Gin
+// route because huma does not serve WebSocket upgrades.
+func statesStreamOperation(humaAPI huma.API) *huma.Operation {
+	return &huma.Operation{
+		OperationID: "StatesStream",
+		Method:      http.MethodGet,
+		Path:        "/process/states/ws",
+		Tags:        []string{"Process"},
+		Summary:     "Stream process state changes over WebSocket",
+		Description: "Upgrades HTTP to WebSocket and streams JSON events. On connect, an event with snapshot=true is sent for every (filtered) process; subsequently, every Status or Health transition (and final exit info) produces one event.",
+		Parameters: []*huma.Param{{
+			Name: "name", In: "query",
+			Description: "Comma-separated process names to subscribe to. If omitted, subscribes to all processes.",
+			Schema:      &huma.Schema{Type: huma.TypeString},
+		}},
+		Responses: map[string]*huma.Response{
+			"101": {Description: "Switching Protocols"},
+			"400": errorResponse(humaAPI, "Invalid WebSocket upgrade request"),
+			"401": errorResponse(humaAPI, "API token missing or invalid before upgrade"),
+			"403": errorResponse(humaAPI, "Cross-origin WebSocket upgrade request rejected"),
+		},
+	}
+}
+
 func (api *PcApi) HandleStatesStream(c *gin.Context) {
 	filter := api.parseStateNameFilter(c.Query("name"))
 

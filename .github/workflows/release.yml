@@ -93,7 +93,7 @@ jobs:
           printf 'upstream_tag=%s\n' "$upstream_tag" >> "$GITHUB_OUTPUT"
 
       - name: Verify generated OpenAPI artifacts
-        run: make check-swag
+        run: make check-openapi
 
       - name: Run Go tests and live HTTP OpenAPI contract
         env:
@@ -234,7 +234,11 @@ jobs:
           body: |
             Fork release version lineage: upstream `${{ needs.verify.outputs.upstream_tag }}`. The exact branch point is upstream commit [`${{ needs.verify.outputs.upstream_commit }}`](https://github.com/F1bonacc1/process-compose/commit/${{ needs.verify.outputs.upstream_commit }}), as recorded in `.upstream-base`; it may include upstream commits newer than the lineage tag.
 
-            Compatibility note: the logs WebSocket now rejects omitted or empty process names and invalid `follow` values with a JSON `400` response.
+            Compatibility notes:
+            - The logs WebSocket rejects omitted or empty process names and invalid `follow` values with a JSON `400` response.
+            - The HTTP API is documented by the API itself: the OpenAPI document is served at `/openapi.json` (OpenAPI 3.1), `/openapi-3.0.json` and their `.yaml` variants, and the docs UI at `/docs` (`/` redirects there), which loads Swagger UI from unpkg.com. The embedded Swagger UI at `/swagger/` is gone.
+            - The documented `namespace` field is a string or a list of strings, as the API returns it.
+            - Path parameters, query parameters and request bodies are validated against the documented schema. Invalid requests are still rejected with a JSON `400` response, now with validation messages; a body value outside a documented enum (for example a restart policy) is now rejected, and an empty `withMemory` query value counts as absent.
 
             The release workflow stages these verified assets in a draft and publishes it as the fork's latest release only after all Go, OpenAPI, Nix, Rust, and packaging gates pass.
           files: |

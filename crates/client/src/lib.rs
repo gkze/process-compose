@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 pub mod cli;
 
 /// Raw OpenAPI spec string
-pub const OPENAPI_JSON_STRING: &str = include_str!("../../../src/docs/swagger.json");
+pub const OPENAPI_JSON_STRING: &str = include_str!("../../../src/api/openapi.json");
 
 /// Raw Process Compose config file schema string
 pub const CONFIG_SCHEMA_JSON_STRING: &str =

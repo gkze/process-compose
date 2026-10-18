@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // MCPServerConfig defines the top-level MCP server configuration
@@ -90,6 +92,10 @@ const (
 	MCPProcessTypeResource MCPProcessType = "resource"
 )
 
+func (MCPProcessType) Schema(huma.Registry) *huma.Schema {
+	return enumSchema(huma.TypeString, MCPProcessTypeTool, MCPProcessTypeResource)
+}
+
 // MCPArgumentType represents the type of an MCP argument
 type MCPArgumentType string
 
@@ -99,6 +105,10 @@ const (
 	MCPArgTypeBoolean MCPArgumentType = "boolean"
 	MCPArgTypeInteger MCPArgumentType = "integer"
 )
+
+func (MCPArgumentType) Schema(huma.Registry) *huma.Schema {
+	return enumSchema(huma.TypeString, MCPArgTypeString, MCPArgTypeNumber, MCPArgTypeBoolean, MCPArgTypeInteger)
+}
 
 // IsValid checks if the argument type is valid
 func (t MCPArgumentType) IsValid() bool {

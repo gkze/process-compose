@@ -21,7 +21,7 @@ in
   nativeBuildInputs = [ installShellFiles ];
   nativeCheckInputs = [ pkgs.gitMinimal ];
 
-  vendorHash = "sha256-6JPop20KfsAjH1VnyqtyYRYTr+RQKeBwHAhpTDSo6Kc=";
+  vendorHash = "sha256-2JkBpvAnwElQDLRfR9DlO3ZaBi9ixqZuikp182UdUM4=";
 
   postInstall = ''
 

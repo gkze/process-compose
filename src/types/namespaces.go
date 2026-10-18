@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/invopop/jsonschema"
 	"gopkg.in/yaml.v3"
 )
@@ -131,6 +132,18 @@ func (Namespaces) JSONSchema() *jsonschema.Schema {
 		OneOf: []*jsonschema.Schema{
 			{Type: "string"},
 			{Type: "array", Items: &jsonschema.Schema{Type: "string"}},
+		},
+		Description: "Namespace(s) the process belongs to (string or list of strings, default: \"default\")",
+	}
+}
+
+// Schema is the HTTP API counterpart of JSONSchema: MarshalJSON writes a
+// single namespace as a string and several as a list.
+func (Namespaces) Schema(huma.Registry) *huma.Schema {
+	return &huma.Schema{
+		OneOf: []*huma.Schema{
+			{Type: huma.TypeString},
+			{Type: huma.TypeArray, Items: &huma.Schema{Type: huma.TypeString}},
 		},
 		Description: "Namespace(s) the process belongs to (string or list of strings, default: \"default\")",
 	}

@@ -12,6 +12,8 @@ reqwest = { version = "0.12", default-features = false, features = [
 serde = { version = "1.0", default-features = false, features = ["derive"]}
 tokio = { version = "1.41", features = ["macros", "rt-multi-thread"] }
 serde_json = { version = "1.0", default-features = false }
+# the generated client represents date-time fields as chrono::DateTime
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
 
 progenitor-client = { version = "0.11", default-features = false, optional = false}
 

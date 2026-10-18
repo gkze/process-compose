@@ -43,7 +43,7 @@ func (f *fakeProject) GetProcessState(name string) (*types.ProcessState, error) 
 
 func newTestClient(t *testing.T, project app.IProject) *PcClient {
 	t.Helper()
-	srv := httptest.NewServer(api.InitRoutes(false, api.NewPcApi(project)))
+	srv := httptest.NewServer(api.InitRoutes(false, api.NewPcApi(project), api.DefaultServerURL))
 	t.Cleanup(srv.Close)
 	host, portStr, err := net.SplitHostPort(strings.TrimPrefix(srv.URL, "http://"))
 	if err != nil {

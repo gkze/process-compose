@@ -3,20 +3,20 @@ package types
 import "time"
 
 type ProjectState struct {
-	FileNames         []string      `json:"fileNames" binding:"required"`
-	UpTime            time.Duration `json:"upTime" binding:"required" swaggertype:"primitive,integer"`
-	StartTime         time.Time     `json:"startTime" binding:"required"`
-	ProcessNum        int           `json:"processNum" binding:"required"`
-	RunningProcessNum int           `json:"runningProcessNum" binding:"required"`
-	UserName          string        `json:"userName" binding:"required"`
-	Version           string        `json:"version" binding:"required"`
-	ProjectName       string        `json:"projectName" binding:"required"`
+	FileNames         []string      `json:"fileNames" required:"true"`
+	UpTime            time.Duration `json:"upTime" required:"true"`
+	StartTime         time.Time     `json:"startTime" required:"true"`
+	ProcessNum        int           `json:"processNum" required:"true"`
+	RunningProcessNum int           `json:"runningProcessNum" required:"true"`
+	UserName          string        `json:"userName" required:"true"`
+	Version           string        `json:"version" required:"true"`
+	ProjectName       string        `json:"projectName" required:"true"`
 	MemoryState       *MemoryState  `json:"memoryState,omitempty"`
 }
 
 type MemoryState struct {
-	Allocated      uint64 `json:"allocated" binding:"required"`
-	TotalAllocated uint64 `json:"totalAllocated" binding:"required"`
-	SystemMemory   uint64 `json:"systemMemory" binding:"required"`
-	GcCycles       uint32 `json:"gcCycles" binding:"required"`
+	Allocated      uint64 `json:"allocated" required:"true"`
+	TotalAllocated uint64 `json:"totalAllocated" required:"true"`
+	SystemMemory   uint64 `json:"systemMemory" required:"true"`
+	GcCycles       uint32 `json:"gcCycles" required:"true"`
 }

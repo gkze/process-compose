@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/f1bonacc1/process-compose/src/command"
 	"github.com/f1bonacc1/process-compose/src/health"
 	"github.com/rs/zerolog/log"
@@ -65,7 +66,7 @@ type (
 		TruncateLog             bool                `yaml:"truncate_log,omitempty" json:"truncateLog,omitempty"`
 		DisableCommandRendering bool                `yaml:"is_template_disabled,omitempty" json:"disableCommandRendering,omitempty"`
 		MonitorFor              MonitorFor          `yaml:"monitor_for,omitempty" json:"monitorFor,omitempty" jsonschema:"type=string,enum=none,enum=activity,enum=silence"`
-		MonitorSilenceThreshold time.Duration       `yaml:"monitor_silence_threshold,omitempty" json:"monitorSilenceThreshold,omitempty" swaggertype:"primitive,integer"`
+		MonitorSilenceThreshold time.Duration       `yaml:"monitor_silence_threshold,omitempty" json:"monitorSilenceThreshold,omitempty"`
 		SuccessExitCodes        []int               `yaml:"success_exit_codes,omitempty" json:"successExitCodes,omitempty"`
 	}
 )
@@ -278,10 +279,10 @@ func NewProcessState(proc *ProcessConfig) *ProcessState {
 
 type ProcessState struct {
 	Name             string        `json:"name"`
-	Namespace        Namespaces    `json:"namespace" swaggertype:"array,string"`
+	Namespace        Namespaces    `json:"namespace"`
 	Status           string        `json:"status"`
 	SystemTime       string        `json:"system_time"`
-	Age              time.Duration `json:"age" swaggertype:"primitive,integer"`
+	Age              time.Duration `json:"age"`
 	Health           string        `json:"is_ready"`
 	HasHealthProbe   bool          `json:"has_ready_probe"`
 	Restarts         int           `json:"restarts"`
@@ -441,6 +442,10 @@ const (
 	RestartPolicyExitOnFailure
 )
 
+func (RestartPolicy) Schema(huma.Registry) *huma.Schema {
+	return enumSchema(huma.TypeInteger, RestartPolicyNo, RestartPolicyAlways, RestartPolicyOnFailure, RestartPolicyExitOnFailure)
+}
+
 func (p *RestartPolicy) UnmarshalYAML(node *yaml.Node) error {
 	var value string
 	if err := node.Decode(&value); err != nil {
@@ -555,6 +560,11 @@ const (
 	ProcessConditionLogReady
 )
 
+func (ProcessCondition) Schema(huma.Registry) *huma.Schema {
+	return enumSchema(huma.TypeInteger, ProcessConditionCompleted, ProcessConditionCompletedSuccessfully,
+		ProcessConditionHealthy, ProcessConditionStarted, ProcessConditionLogReady)
+}
+
 func (c *ProcessCondition) UnmarshalYAML(node *yaml.Node) error {
 	var value string
 	if err := node.Decode(&value); err != nil {
@@ -602,6 +612,10 @@ const (
 	MonitorForActivity                   // notify on new output while unfocused
 	MonitorForSilence                    // notify on no output while unfocused
 )
+
+func (MonitorFor) Schema(huma.Registry) *huma.Schema {
+	return enumSchema(huma.TypeInteger, MonitorForNone, MonitorForActivity, MonitorForSilence)
+}
 
 func (m *MonitorFor) UnmarshalYAML(node *yaml.Node) error {
 	var value string

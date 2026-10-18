@@ -943,6 +943,14 @@
       "types.ShutDownParams": {
         "additionalProperties": true,
         "properties": {
+          "killMode": {
+            "enum": [
+              "parent",
+              "group",
+              "tree"
+            ],
+            "type": "string"
+          },
           "parentOnly": {
             "type": "boolean"
           },

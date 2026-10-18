@@ -31,6 +31,7 @@ import (
 const (
 	UndefinedShutdownTimeoutSec = 0
 	DefaultShutdownTimeoutSec   = 10
+	treeRemnantsPollInterval    = 100 * time.Millisecond
 	EnvReplicaNum               = "PC_REPLICA_NUM"
 	LogReplicaNum               = "{" + EnvReplicaNum + "}"
 )
@@ -276,7 +277,11 @@ func (p *Process) waitForStdOutErr() {
 func (p *Process) getProcessStarter() func() error {
 	return func() error {
 		p.command = p.getCommander()
-		p.command.SetEnv(p.getProcessEnvironment())
+		env := p.getProcessEnvironment()
+		if p.procConf.ShutDownParams.GetKillMode() == command.KillModeTree {
+			env = command.WithTreeMarker(env)
+		}
+		p.command.SetEnv(env)
 		p.command.SetDir(p.procConf.WorkingDir)
 
 		if p.isMain || (p.procConf.IsElevated && !p.isTuiEnabled) {
@@ -524,7 +529,7 @@ func (p *Process) sendSignal(sig int) error {
 	if !p.isSignalable() {
 		return fmt.Errorf("process %s is not running", p.getName())
 	}
-	return p.command.Stop(sig, p.procConf.ShutDownParams.ParentOnly)
+	return p.command.Stop(sig, p.procConf.ShutDownParams.GetKillMode())
 }
 
 func (p *Process) stopProcess(withNoRestart bool) error {
@@ -563,7 +568,7 @@ func (p *Process) stopProcess(withNoRestart bool) error {
 	if isStringDefined(p.procConf.ShutDownParams.SendKeys) {
 		return p.doSendKeysStop(p.procConf.ShutDownParams)
 	}
-	err := p.command.Stop(p.procConf.ShutDownParams.Signal, p.procConf.ShutDownParams.ParentOnly)
+	err := p.command.Stop(p.procConf.ShutDownParams.Signal, p.procConf.ShutDownParams.GetKillMode())
 	if err != nil {
 		log.Error().Err(err).Msgf("terminating %s failed", p.getName())
 	}
@@ -574,21 +579,47 @@ func (p *Process) stopProcess(withNoRestart bool) error {
 }
 
 func (p *Process) forceKillOnTimeout() error {
+	cmd := p.command
 	p.mtxStopFn.Lock()
-	p.waitForStoppedCtx, p.waitForStoppedFn = context.WithTimeout(context.Background(), time.Duration(p.procConf.ShutDownParams.ShutDownTimeout)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.procConf.ShutDownParams.ShutDownTimeout)*time.Second)
+	p.waitForStoppedCtx, p.waitForStoppedFn = ctx, cancel
 	p.mtxStopFn.Unlock()
-	<-p.waitForStoppedCtx.Done()
-	err := p.waitForStoppedCtx.Err()
+	<-ctx.Done()
+	err := ctx.Err()
 	switch {
 	case errors.Is(err, context.Canceled):
-		return nil
+		return p.forceKillTreeRemnants(ctx, cmd)
 	case errors.Is(err, context.DeadlineExceeded):
 		log.Debug().Msgf("process failed to shut down within %d seconds, sending %d", p.procConf.ShutDownParams.ShutDownTimeout, syscall.SIGKILL)
-		return p.command.Stop(int(syscall.SIGKILL), false)
+		return cmd.Stop(int(syscall.SIGKILL), p.procConf.ShutDownParams.GetForceKillMode())
 	default:
 		log.Error().Err(err).Msgf("terminating %s with timeout %d failed", p.getName(), p.procConf.ShutDownParams.ShutDownTimeout)
 		return err
 	}
+}
+
+// forceKillTreeRemnants applies the shutdown timeout to the whole tree in tree
+// kill mode: once the launched process has exited, it waits until the
+// deadline of stopCtx for the rest of its tree to exit, and SIGKILLs the
+// members that are still running then. Other kill modes return at once.
+func (p *Process) forceKillTreeRemnants(stopCtx context.Context, cmd command.Commander) error {
+	if p.procConf.ShutDownParams.GetKillMode() != command.KillModeTree {
+		return nil
+	}
+	deadline, _ := stopCtx.Deadline()
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+	ticker := time.NewTicker(treeRemnantsPollInterval)
+	defer ticker.Stop()
+	for cmd.IsTreeAlive() {
+		select {
+		case <-timer.C:
+			log.Debug().Msgf("process %s tree did not shut down within %d seconds, sending %d", p.getName(), p.procConf.ShutDownParams.ShutDownTimeout, syscall.SIGKILL)
+			return cmd.Stop(int(syscall.SIGKILL), command.KillModeTree)
+		case <-ticker.C:
+		}
+	}
+	return nil
 }
 
 func (p *Process) doConfiguredStop(params types.ShutDownParams) error {
@@ -608,7 +639,7 @@ func (p *Process) doConfiguredStop(params types.ShutDownParams) error {
 	if err := cmd.Run(); err != nil {
 		// the process termination timedout and it will be killed
 		log.Error().Msgf("terminating %s with timeout %d failed - %s", p.getName(), timeout, err.Error())
-		return p.command.Stop(int(syscall.SIGKILL), false)
+		return p.command.Stop(int(syscall.SIGKILL), p.procConf.ShutDownParams.GetForceKillMode())
 	}
 	return nil
 }
@@ -647,7 +678,7 @@ func (p *Process) doSendKeysStop(params types.ShutDownParams) error {
 		return nil // exited gracefully in response to the keys
 	case errors.Is(err, context.DeadlineExceeded):
 		log.Debug().Msgf("process %s failed to exit on keys within %d seconds, sending %d", p.getName(), timeout, syscall.SIGKILL)
-		return p.command.Stop(int(syscall.SIGKILL), false)
+		return p.command.Stop(int(syscall.SIGKILL), p.procConf.ShutDownParams.GetForceKillMode())
 	default:
 		log.Error().Err(err).Msgf("terminating %s with send_keys timeout %d failed", p.getName(), timeout)
 		return err
@@ -658,7 +689,7 @@ func (p *Process) doSendKeysStop(params types.ShutDownParams) error {
 // SIGKILL-on-timeout fallback. It mirrors the default branch of stopProcess and
 // is used when send_keys cannot be delivered.
 func (p *Process) gracefulShutDownWithSignal(params types.ShutDownParams) error {
-	err := p.command.Stop(params.Signal, params.ParentOnly)
+	err := p.command.Stop(params.Signal, params.GetKillMode())
 	if err != nil {
 		log.Error().Err(err).Msgf("terminating %s failed", p.getName())
 	}

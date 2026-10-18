@@ -6,7 +6,8 @@ import (
 )
 
 type Commander interface {
-	Stop(sig int, _parentOnly bool) error
+	Stop(sig int, mode KillMode) error
+	IsTreeAlive() bool
 	SetCmdArgs()
 	Start() error
 	Run() error

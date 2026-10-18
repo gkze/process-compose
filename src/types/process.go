@@ -214,6 +214,9 @@ func (p *ProcessConfig) ValidateProcessConfig() error {
 			return fmt.Errorf("invalid success_exit_codes value %d in process '%s': exit codes must be in the range 0-255", code, p.Name)
 		}
 	}
+	if err := p.ShutDownParams.validate(); err != nil {
+		return fmt.Errorf("process '%s': %w", p.Name, err)
+	}
 	if p.ShutDownParams.SendKeys != "" && !p.IsInteractive && !p.IsTty {
 		return fmt.Errorf("process '%s': shutdown.send_keys requires is_interactive (or is_tty)", p.Name)
 	}
@@ -550,8 +553,46 @@ type ShutDownParams struct {
 	ShutDownCommand string `yaml:"command,omitempty" json:"shutDownCommand,omitempty"`
 	ShutDownTimeout int    `yaml:"timeout_seconds,omitempty" json:"shutDownTimeout,omitempty"`
 	Signal          int    `yaml:"signal,omitempty" json:"signal,omitempty"`
-	ParentOnly      bool   `yaml:"parent_only,omitempty" json:"parentOnly,omitempty"`
-	SendKeys        string `yaml:"send_keys,omitempty" json:"sendKeys,omitempty"`
+	// ParentOnly is the legacy spelling of KillMode parent.
+	ParentOnly bool             `yaml:"parent_only,omitempty" json:"parentOnly,omitempty"`
+	KillMode   command.KillMode `yaml:"kill_mode,omitempty" json:"killMode,omitempty" jsonschema:"type=string,enum=parent,enum=group,enum=tree"`
+	SendKeys   string           `yaml:"send_keys,omitempty" json:"sendKeys,omitempty"`
+}
+
+// GetKillMode returns the configured kill mode: kill_mode when set, parent for
+// the legacy parent_only, and group otherwise.
+func (s ShutDownParams) GetKillMode() command.KillMode {
+	switch {
+	case s.KillMode != "":
+		return s.KillMode
+	case s.ParentOnly:
+		return command.KillModeParent
+	default:
+		return command.KillModeGroup
+	}
+}
+
+// GetForceKillMode returns the kill mode of the SIGKILL sent when a process
+// does not stop in time: tree for tree mode, and group otherwise, since
+// parent_only has never limited the SIGKILL fallback.
+func (s ShutDownParams) GetForceKillMode() command.KillMode {
+	if s.GetKillMode() == command.KillModeTree {
+		return command.KillModeTree
+	}
+	return command.KillModeGroup
+}
+
+func (s ShutDownParams) validate() error {
+	if s.KillMode == "" {
+		return nil
+	}
+	if err := s.KillMode.Validate(); err != nil {
+		return err
+	}
+	if s.ParentOnly && s.KillMode != command.KillModeParent {
+		return fmt.Errorf("shutdown.parent_only conflicts with shutdown.kill_mode '%s'", s.KillMode)
+	}
+	return nil
 }
 
 //go:generate stringer -type=ProcessCondition

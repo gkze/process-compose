@@ -48,7 +48,7 @@ func (c *CmdWrapperPty) Wait() error {
 	return c.cmd.Wait()
 }
 
-func (c *CmdWrapperPty) Stop(sig int, parentOnly bool) error {
+func (c *CmdWrapperPty) Stop(sig int, mode KillMode) error {
 	// For PTY processes (interactive), SIGTERM is often ignored (e.g. shells).
 	// They expect SIGHUP (hangup) to terminate gracefully.
 	if sig == int(syscall.SIGTERM) {
@@ -56,7 +56,7 @@ func (c *CmdWrapperPty) Stop(sig int, parentOnly bool) error {
 	}
 
 	// Send the signal
-	err := c.CmdWrapper.Stop(sig, parentOnly)
+	err := c.CmdWrapper.Stop(sig, mode)
 	if c.ptmx != nil {
 		_ = c.ptmx.Close()
 	}

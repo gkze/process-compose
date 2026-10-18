@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/f1bonacc1/process-compose/src/command"
 	"github.com/f1bonacc1/process-compose/src/health"
 	"gopkg.in/yaml.v3"
 )
@@ -622,6 +623,39 @@ func TestCompareProcessConfigsSchedule(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if equal := base.Compare(&ProcessConfig{Schedule: tt.schedule}); equal != tt.equal {
 				t.Fatalf("Compare() = %v, want %v", equal, tt.equal)
+			}
+		})
+	}
+}
+
+func TestShutDownParams_KillMode(t *testing.T) {
+	tests := []struct {
+		name      string
+		params    ShutDownParams
+		wantMode  command.KillMode
+		wantForce command.KillMode
+		wantErr   bool
+	}{
+		{name: "default", params: ShutDownParams{}, wantMode: command.KillModeGroup, wantForce: command.KillModeGroup},
+		{name: "parent_only alias", params: ShutDownParams{ParentOnly: true}, wantMode: command.KillModeParent, wantForce: command.KillModeGroup},
+		{name: "parent", params: ShutDownParams{KillMode: command.KillModeParent}, wantMode: command.KillModeParent, wantForce: command.KillModeGroup},
+		{name: "parent with parent_only", params: ShutDownParams{KillMode: command.KillModeParent, ParentOnly: true}, wantMode: command.KillModeParent, wantForce: command.KillModeGroup},
+		{name: "group", params: ShutDownParams{KillMode: command.KillModeGroup}, wantMode: command.KillModeGroup, wantForce: command.KillModeGroup},
+		{name: "tree", params: ShutDownParams{KillMode: command.KillModeTree}, wantMode: command.KillModeTree, wantForce: command.KillModeTree},
+		{name: "tree with parent_only", params: ShutDownParams{KillMode: command.KillModeTree, ParentOnly: true}, wantMode: command.KillModeTree, wantForce: command.KillModeTree, wantErr: true},
+		{name: "unknown", params: ShutDownParams{KillMode: "session"}, wantMode: "session", wantForce: command.KillModeGroup, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.params.GetKillMode(); got != tt.wantMode {
+				t.Errorf("GetKillMode() = %v, want %v", got, tt.wantMode)
+			}
+			if got := tt.params.GetForceKillMode(); got != tt.wantForce {
+				t.Errorf("GetForceKillMode() = %v, want %v", got, tt.wantForce)
+			}
+			proc := ProcessConfig{Name: "proc", ShutDownParams: tt.params}
+			if err := proc.ValidateProcessConfig(); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateProcessConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

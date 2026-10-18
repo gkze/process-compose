@@ -567,6 +567,14 @@
         "parent_only": {
           "type": "boolean"
         },
+        "kill_mode": {
+          "type": "string",
+          "enum": [
+            "parent",
+            "group",
+            "tree"
+          ]
+        },
         "send_keys": {
           "type": "string"
         }

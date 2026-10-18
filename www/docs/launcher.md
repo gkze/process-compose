@@ -211,22 +211,42 @@ processes:
       command: "docker stop nginx_test"
       timeout_seconds: 10 # default 10
       signal: 15 # default 15, but only if the 'command' is not defined or empty
-      parent_only: no  # default no. If yes, only signal the running process instead of its whole process group
+      kill_mode: group # default group. One of: parent, group, tree
+      parent_only: no  # deprecated alias of 'kill_mode: parent'
 ```
 
 `shutdown` is optional and can be omitted. The default behavior in this case: `SIGTERM` is issued to the process group of the running process.
 
 In case only `shutdown.signal` is defined `[1..31]` the running process group will be terminated with its value.
 
-If `shutdown.parent_only` is yes, the signal is only sent to the running process and not to the whole process group.
+`shutdown.kill_mode` selects which processes receive the signal:
+
+- `group` (default): the process group of the running process. Process Compose starts every process in its own process group.
+- `parent`: only the running process. `parent_only: yes` is the older spelling of this mode; it cannot be combined with another `kill_mode`.
+- `tree`: the running process and all of its descendants, including descendants that left its process group or session (e.g. daemons that call `setsid`) and descendants that were reparented after their parent exited (e.g. children of a wrapper such as `mise exec` or a launcher script). See [Process Tree Termination](#process-tree-termination).
 
 In case the `shutdown.command` is defined:
 
 1. The `shutdown.command` is executed with all the Environment Variables of the primary process
 2. Wait for `shutdown.timeout_seconds` for its completion (if not defined wait for 10 seconds)
-3. In case of timeout, the process group will receive the `SIGKILL` signal (irrespective of the `shutdown.parent_only` option).
+3. In case of timeout, the process group (the process tree with `kill_mode: tree`) will receive the `SIGKILL` signal, also with `kill_mode: parent`.
 
-In case the `shutdown.timeout_seconds` is defined (without `shutdown.command`) and the process will fail to terminate within that time, the process group will receive the `SIGKILL` signal.
+In case the `shutdown.timeout_seconds` is defined (without `shutdown.command`) and the process will fail to terminate within that time, the process group (the process tree with `kill_mode: tree`) will receive the `SIGKILL` signal. With `kill_mode: tree`, the timeout applies to the whole tree: descendants that are still running when it expires receive `SIGKILL`, even if the process itself has already exited.
+
+### Process Tree Termination
+
+With `kill_mode: tree` (Linux and macOS), Process Compose finds the members of the process tree when it signals a process:
+
+1. It walks the process table by parent links from the running process, its process group, the members found by earlier signals, and every process of the same user that carries the process's tree marker (below). It freezes each member with `SIGSTOP` and walks again until no new member appears, so members cannot fork or exit while they are collected.
+2. It sends the signal to every member whose start time still matches (to skip reused PIDs), then resumes the members with `SIGCONT`.
+
+Every process started with `kill_mode: tree` receives a unique `PC_PROCESS_TREE_ID` environment variable, which its descendants inherit. It is read from `/proc/<pid>/environ` on Linux and `sysctl KERN_PROCARGS2` on macOS, so it finds descendants that left the process group or session after their parent exited. Limitations:
+
+- A descendant that removes or changes `PC_PROCESS_TREE_ID` before it is reparented, or that overwrites its initial environment in memory (as `perl` and programs that rewrite their process title do), is found only through parent links.
+- Descendants of another user (e.g. started through `sudo`) cannot be signalled.
+- Without `shutdown.timeout_seconds`, descendants that ignore the signal keep running after the process exits.
+
+On Windows, `group` and `tree` both terminate the process tree with `taskkill /T`.
 
 ### Stopping Interactive Processes With Keystrokes
 

@@ -1356,8 +1356,8 @@ func TestSystem_TestProcShutDownWithConfiguredTimeOut(t *testing.T) {
 		assertProcessStatus(t, proc, ignoresSigTerm, types.ProcessStateRunning)
 
 		// If the test fails, cleanup after ourselves
-		defer func(command command.Commander) {
-			_ = command.Stop(int(syscall.SIGKILL), true)
+		defer func(cmd command.Commander) {
+			_ = cmd.Stop(int(syscall.SIGKILL), command.KillModeParent)
 		}(proc.command)
 
 		stopDone := make(chan struct{})

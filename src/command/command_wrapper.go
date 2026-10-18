@@ -7,7 +7,8 @@ import (
 )
 
 type CmdWrapper struct {
-	cmd *exec.Cmd
+	cmd  *exec.Cmd
+	tree treeState
 }
 
 func (c *CmdWrapper) GetPty() *os.File {

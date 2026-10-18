@@ -29,10 +29,14 @@ func (c *MockCommand) Start() error {
 	return nil
 }
 
-func (c *MockCommand) Stop(_ int, _ bool) error {
+func (c *MockCommand) Stop(_ int, _ KillMode) error {
 	c.stopChan <- struct{}{}
 	c.cancel()
 	return nil
+}
+
+func (c *MockCommand) IsTreeAlive() bool {
+	return false
 }
 
 func (c *MockCommand) SetCmdArgs() {

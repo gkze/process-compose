@@ -7,7 +7,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (c *CmdWrapper) Stop(sig int, parentOnly bool) error {
+// Stop terminates the process with taskkill. Windows has no process groups or
+// signals: KillModeGroup and KillModeTree both terminate the process tree.
+func (c *CmdWrapper) Stop(sig int, mode KillMode) error {
 	pid := c.Pid()
 	if pid <= 0 {
 		return nil
@@ -15,11 +17,11 @@ func (c *CmdWrapper) Stop(sig int, parentOnly bool) error {
 	log.
 		Debug().
 		Int("pid", pid).
-		Bool("parentOnly", parentOnly).
+		Str("killMode", string(mode)).
 		Msg("Stop Windows process.")
 
 	args := []string{"/F", "/PID", strconv.Itoa(pid)}
-	if !parentOnly {
+	if mode != KillModeParent {
 		args = append([]string{"/T"}, args...)
 	}
 
@@ -33,6 +35,12 @@ func (c *CmdWrapper) Stop(sig int, parentOnly bool) error {
 	}
 
 	return nil
+}
+
+// IsTreeAlive is not supported on Windows: taskkill /T already terminated the
+// tree, so it reports false.
+func (c *CmdWrapper) IsTreeAlive() bool {
+	return false
 }
 
 func (c *CmdWrapper) SetCmdArgs() {

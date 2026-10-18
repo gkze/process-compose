@@ -1,0 +1,2 @@
+# Generated; TestOpenAPIDocumentIsCurrent compares it byte for byte on every platform.
+src/api/openapi.json text eol=lf

@@ -24,9 +24,15 @@ import (
 	"github.com/f1bonacc1/process-compose/src/scheduler"
 	"github.com/f1bonacc1/process-compose/src/templater"
 	"github.com/f1bonacc1/process-compose/src/types"
+	"github.com/f1bonacc1/process-compose/src/watcher"
 
 	"github.com/rs/zerolog/log"
 )
+
+// pendingTerminationTimeout bounds how long a restart waits for a process that
+// never started (one still waiting on its dependencies) to release its
+// goroutine before the replacement instance is launched.
+const pendingTerminationTimeout = 5 * time.Second
 
 type ExitError struct {
 	Code int
@@ -37,24 +43,36 @@ func (e *ExitError) Error() string {
 }
 
 type ProjectRunner struct {
-	procConfMutex    sync.Mutex
-	project          *types.Project
-	logsMutex        sync.Mutex
-	processLogs      map[string]*pclog.ProcessLogBuffer
-	statesMutex      sync.Mutex
-	processStates    map[string]*types.ProcessState
-	runProcMutex     sync.Mutex
-	runningProcesses map[string]*Process
-	doneProcMutex    sync.Mutex
-	doneProcesses    map[string]*Process
-	restartMutex     sync.Mutex
-	restartCalls     map[string]*RestartCall
-	logger           pclog.PcLogger
+	procConfMutex sync.Mutex
+	project       *types.Project
+	logsMutex     sync.Mutex
+	processLogs   map[string]*pclog.ProcessLogBuffer
+	statesMutex   sync.Mutex
+	processStates map[string]*types.ProcessState
+	// pendingRestartReset marks processes whose next incarnation should start
+	// with a zeroed restart counter. Guarded by statesMutex.
+	pendingRestartReset map[string]bool
+	runProcMutex        sync.Mutex
+	runningProcesses    map[string]*Process
+	doneProcMutex       sync.Mutex
+	doneProcesses       map[string]*Process
+	restartMutex        sync.Mutex
+	restartCalls        map[string]*RestartCall
+	// stopEpochs counts the stop requests made for each process. A restart
+	// samples it before tearing the running incarnation down and re-reads it
+	// before launching the replacement: a stop that lands inside that window
+	// finds the old incarnation already Terminating, so it stops nothing, and
+	// without this the relaunch would silently bring the process back up.
+	// Guarded by restartMutex.
+	stopEpochs map[string]uint64
+	logger     pclog.PcLogger
 	//waitGroup            sync.WaitGroup
 	//waitGroup            sync.WaitGroup
 	exitCodeMutex        sync.Mutex
 	exitCode             int
 	projectState         *types.ProjectState
+	processesToRun       []string
+	noDeps               bool
 	mainProcess          string
 	mainProcessArgs      []string
 	isTuiOn              bool
@@ -66,8 +84,11 @@ type ProjectRunner struct {
 	refRate              time.Duration
 	withRecursiveMetrics bool
 	procCompleteChannel  chan int
+	updatesInFlight      atomic.Int32
 	processTree          *ProcessTree
+	noWatch              bool
 	processScheduler     atomic.Pointer[scheduler.Scheduler]
+	processWatcher       atomic.Pointer[watcher.Watcher]
 	stateBroadcaster     *ProcessStateBroadcaster
 	admitters            []admitter.Admitter
 }
@@ -169,15 +190,7 @@ func (p *ProjectRunner) Run() error {
 	} else {
 		p.processScheduler.Store(sched)
 		for name, proc := range p.project.Processes {
-			if proc.Schedule != nil && proc.Schedule.IsScheduled() {
-				if err := sched.AddProcess(name, proc.Schedule); err != nil {
-					log.Error().Err(err).Msgf("Failed to schedule process %s", name)
-				} else if proc.Disabled {
-					if err := sched.PauseProcess(name); err != nil {
-						log.Error().Err(err).Msgf("Failed to pause schedule for disabled process %s", name)
-					}
-				}
-			}
+			p.scheduleProcess(name, proc)
 		}
 		sched.Start()
 		defer func() {
@@ -194,6 +207,13 @@ func (p *ProjectRunner) Run() error {
 		newConf := proc
 		p.runProcess(&newConf)
 	}
+
+	// Started after the run order, deliberately: a watch registered earlier
+	// could fire on start-up churn and restart a process whose first launch is
+	// still in flight, leaving two incarnations.
+	p.startWatcher()
+	defer p.stopWatcher()
+
 	for {
 		select {
 		case <-p.ctxApp.Done():
@@ -214,7 +234,26 @@ func (p *ProjectRunner) Run() error {
 					log.Debug().Msgf("Skipping project completion: %d restart(s) in progress", pendingRestarts)
 					continue
 				}
-				if s := p.processScheduler.Load(); s == nil || len(s.GetScheduledProcesses()) == 0 {
+				if updates := p.updatesInFlight.Load(); updates > 0 {
+					log.Debug().Msgf("Skipping project completion: %d update(s) in progress", updates)
+					continue
+				}
+				// The count carried by the message is a snapshot taken when a
+				// process exited. By the time it is read here a replacement may
+				// already be running (restart, update, scale), so re-read the
+				// live count - a stale zero must not complete a project that
+				// still has running processes.
+				p.runProcMutex.Lock()
+				running := len(p.runningProcesses)
+				p.runProcMutex.Unlock()
+				if running > 0 {
+					log.Debug().Msgf("Skipping project completion: %d process(es) still running", running)
+					continue
+				}
+				// Scheduled processes and armed watchers can both still start
+				// something, so an empty running set is not the end of the
+				// project while either is live.
+				if !p.hasBackgroundTriggers() {
 					log.Info().Msg("Project completed")
 					p.exitCodeMutex.Lock()
 					exitCode := p.exitCode
@@ -240,7 +279,7 @@ func (p *ProjectRunner) runProcess(config *types.ProcessConfig) {
 		log.Error().Msgf("Error: Can't get log: %s using empty buffer", err.Error())
 		procLog = pclog.NewLogBuffer(0)
 	}
-	procState, _ := p.GetProcessState(config.ReplicaName)
+	procState := p.newIncarnationState(config)
 	isMain := config.Name == p.mainProcess
 	hasMain := p.mainProcess != ""
 	printLogs := !hasMain && !p.isTuiOn && !p.project.MCPServer.IsStdio()
@@ -269,30 +308,68 @@ func (p *ProjectRunner) runProcess(config *types.ProcessConfig) {
 	)
 	p.addRunningProcess(process)
 	go func(proc *Process) {
-		if err = p.waitIfNeeded(proc.procConf); err != nil {
-			log.Error().Msgf("Error: %s", err.Error())
-			log.Error().Msgf("Error: process %s won't run", proc.getName())
-			proc.wontRun()
-			p.onProcessSkipped(proc.procConf)
+		defer proc.onTerminated()
+		if waitErr := p.waitIfNeeded(proc); waitErr != nil {
+			if errors.Is(waitErr, errWaitAborted) {
+				log.Debug().Msgf("Process %s was stopped while waiting for its dependencies", proc.getName())
+				// The stop path marks a Pending process as done; make sure of it
+				// so that anything waiting on this instance is released.
+				if !proc.isDone() {
+					proc.onProcessEnd(types.ProcessStateTerminating)
+				}
+			} else {
+				log.Error().Msgf("Error: %s", waitErr.Error())
+				log.Error().Msgf("Error: process %s won't run", proc.getName())
+				proc.wontRun()
+				p.onProcessSkipped(proc.procConf)
+			}
 		} else {
 			exitCode := proc.run()
 			p.addDoneProcess(proc)
-			p.onProcessEnd(exitCode, proc.procConf)
+			// An exit caused by a restart is not the process ending: a
+			// SIGTERM'd process exits non-zero, so letting it reach
+			// onProcessEnd would shut the whole project down under
+			// exit_on_end or exit_on_failure every time a file is saved.
+			if proc.isBeingRestarted() {
+				log.Debug().Msgf("Process %s exited for a restart; not ending the project", proc.getName())
+			} else {
+				p.onProcessEnd(exitCode, proc.procConf)
+			}
 		}
-		count := p.removeRunningProcess(proc)
-		p.procCompleteChannel <- count
+		// Only the instance that still owns the process name may deregister it
+		// and report the remaining process count. A superseded instance must
+		// not evict its replacement.
+		if count, removed := p.removeRunningProcess(proc); removed {
+			p.procCompleteChannel <- count
+		}
 	}(process)
 }
 
-func (p *ProjectRunner) waitIfNeeded(process *types.ProcessConfig) error {
+// errWaitAborted is returned by waitIfNeeded when the waiting process was shut
+// down (stopped, restarted or removed) before its dependencies were satisfied.
+// It is not a failure of the process itself, so it must not be reported as a
+// skipped process.
+var errWaitAborted = errors.New("process was stopped while waiting for its dependencies")
+
+func (p *ProjectRunner) waitIfNeeded(waiter *Process) error {
+	process := waiter.procConf
+	// Cancelled when the waiting process is shut down, which releases every
+	// wait below instead of leaving this goroutine parked on a dependency that
+	// may only resolve minutes later (or never).
+	abort := waiter.procRunCtx.Done()
 	for k := range process.DependsOn {
 		if proc := p.getDoneOrRunningProcess(k); proc != nil {
 			switch process.DependsOn[k].Condition {
 			case types.ProcessConditionCompleted:
-				proc.waitForCompletion()
+				if _, res := proc.waitForCompletionOrAbort(abort); res == waitAborted {
+					return errWaitAborted
+				}
 			case types.ProcessConditionCompletedSuccessfully:
 				log.Info().Msgf("%s is waiting for %s to complete successfully", process.ReplicaName, k)
-				exitCode := proc.waitForCompletion()
+				exitCode, res := proc.waitForCompletionOrAbort(abort)
+				if res == waitAborted {
+					return errWaitAborted
+				}
 				if !proc.procConf.IsExitCodeSuccess(exitCode) {
 					return fmt.Errorf("process %s depended on %s to complete successfully, but it exited with status %d",
 						process.ReplicaName, k, exitCode)
@@ -302,24 +379,35 @@ func (p *ProjectRunner) waitIfNeeded(process *types.ProcessConfig) error {
 					return fmt.Errorf("health dependency defined in '%s' but no health check exists in '%s'", process.ReplicaName, k)
 				}
 				log.Info().Msgf("%s is waiting for %s to be healthy", process.ReplicaName, k)
-				ready := proc.waitUntilReady()
-				if !ready {
+				switch proc.waitUntilReady(abort) {
+				case waitAborted:
+					return errWaitAborted
+				case waitFailed:
 					return fmt.Errorf("process %s depended on %s to become ready, but it was terminated", process.ReplicaName, k)
 				}
 			case types.ProcessConditionLogReady:
 				log.Info().Msgf("%s is waiting for %s log line %s", process.ReplicaName, k, proc.procConf.ReadyLogLine)
-				ready := proc.waitUntilLogReady()
-				if !ready {
+				switch proc.waitUntilLogReady(abort) {
+				case waitAborted:
+					return errWaitAborted
+				case waitFailed:
 					return fmt.Errorf("process %s depended on %s to become ready, but it was terminated", process.ReplicaName, k)
 				}
 			case types.ProcessConditionStarted:
 				log.Info().Msgf("%s is waiting for %s to start", process.ReplicaName, k)
-				proc.waitForStarted()
+				proc.waitForStarted(abort)
 			}
 		} else {
 			log.Error().Msgf("Error: process %s depends on %s, but it isn't running or completed", process.ReplicaName, k)
 		}
 
+	}
+	// A stop that arrived while the last dependency was already satisfied must
+	// still keep the process from starting.
+	select {
+	case <-abort:
+		return errWaitAborted
+	default:
 	}
 	return nil
 }
@@ -352,6 +440,46 @@ func (p *ProjectRunner) onProcessSkipped(procConf *types.ProcessConfig) {
 	}
 }
 
+// newIncarnationState builds the state object for a fresh incarnation of a
+// process. Previously the state was cloned from the outgoing instance, which
+// made a new instance inherit a terminal status ("Terminating") and a stale
+// process_end_time. Only the cumulative restart counter is carried over. The
+// state is also registered as the canonical one for that name, so lookups
+// performed while no instance is running observe the latest incarnation.
+func (p *ProjectRunner) newIncarnationState(config *types.ProcessConfig) *types.ProcessState {
+	state := types.NewProcessState(config)
+	p.statesMutex.Lock()
+	defer p.statesMutex.Unlock()
+	if prev, ok := p.processStates[config.ReplicaName]; ok && prev != nil {
+		state.Restarts = prev.Restarts
+	}
+	if p.pendingRestartReset[config.ReplicaName] {
+		state.Restarts = 0
+		delete(p.pendingRestartReset, config.ReplicaName)
+	}
+	p.processStates[config.ReplicaName] = state
+	return state
+}
+
+// resetRestartCount arranges for the next incarnation of name to start with a
+// zeroed restart counter, which newIncarnationState would otherwise carry
+// forward. A restart the user asked for is a fresh start, not a continuation of
+// a crash loop - without this, a process that had already exhausted
+// max_restarts would come back with its budget still spent.
+//
+// The intent is recorded rather than applied: the stored ProcessState is the
+// same object the outgoing Process is still updating under its own mutex, so
+// writing to it here would race. newIncarnationState consumes the flag while
+// building the new state, which nothing else can see yet.
+func (p *ProjectRunner) resetRestartCount(name string) {
+	p.statesMutex.Lock()
+	defer p.statesMutex.Unlock()
+	if p.pendingRestartReset == nil {
+		p.pendingRestartReset = make(map[string]bool)
+	}
+	p.pendingRestartReset[name] = true
+}
+
 func (p *ProjectRunner) initProcessStates() {
 	p.statesMutex.Lock()
 	defer p.statesMutex.Unlock()
@@ -370,6 +498,33 @@ func (p *ProjectRunner) initProcessLogs() {
 
 func (p *ProjectRunner) initRestartCoalescing() {
 	p.restartCalls = make(map[string]*RestartCall)
+	p.stopEpochs = make(map[string]uint64)
+}
+
+// noteStopRequest records that a stop was requested for name. It must be called
+// before the shutdown itself, so that a restart already in flight sees the
+// request even if the stop turns out to be a no-op on an incarnation that is
+// on its way out.
+func (p *ProjectRunner) noteStopRequest(name string) {
+	p.restartMutex.Lock()
+	defer p.restartMutex.Unlock()
+	p.stopEpochs[name]++
+}
+
+// stopEpoch returns the number of stop requests made for name so far.
+func (p *ProjectRunner) stopEpoch(name string) uint64 {
+	p.restartMutex.Lock()
+	defer p.restartMutex.Unlock()
+	return p.stopEpochs[name]
+}
+
+// isRestartInFlight reports whether a restart of name is between its teardown
+// and its relaunch, a window in which the process is registered nowhere.
+func (p *ProjectRunner) isRestartInFlight(name string) bool {
+	p.restartMutex.Lock()
+	defer p.restartMutex.Unlock()
+	_, exists := p.restartCalls[name]
+	return exists
 }
 
 func (p *ProjectRunner) initProcessLog(name string) {
@@ -410,6 +565,20 @@ func (p *ProjectRunner) GetProcessState(name string) (*types.ProcessState, error
 			// Restore to Completed if it was marked as Scheduled but no longer has a next run
 			state.Status = types.ProcessStateCompleted
 		}
+	}
+
+	// A process that exited cleanly but still has an armed watch is not
+	// finished - it is waiting for a file to change. Reporting Watching also
+	// explains why the project is still running, which "Completed" would leave
+	// mysterious. IsWatchIdle is the same predicate DisplayProcessStatus uses,
+	// so the API and the TUI cannot disagree; in particular a failed process
+	// keeps its failure rather than being masked as Watching.
+	state.IsWatched = p.isProcessWatched(name)
+	state.WatchTriggerPath, state.WatchTriggerTime = p.lastWatchTrigger(name)
+	if state.IsWatched && state.IsWatchIdle() {
+		state.Status = types.ProcessStateWatching
+	} else if !state.IsWatched && state.Status == types.ProcessStateWatching {
+		state.Status = types.ProcessStateCompleted
 	}
 	return state, nil
 }
@@ -466,9 +635,18 @@ func (p *ProjectRunner) addRunningProcess(process *Process) {
 	p.runProcMutex.Unlock()
 }
 
+// addDoneProcess records process as the last completed incarnation of its name.
+// A stale instance that finishes after it was superseded is dropped, so that
+// dependents resolving through getDoneOrRunningProcess never see an older,
+// already cancelled object.
 func (p *ProjectRunner) addDoneProcess(process *Process) {
+	name := process.getName()
+	if current := p.getRunningProcess(name); current != nil && current != process {
+		log.Debug().Msgf("Not recording superseded instance of %s as done", name)
+		return
+	}
 	p.doneProcMutex.Lock()
-	p.doneProcesses[process.getName()] = process
+	p.doneProcesses[name] = process
 	p.doneProcMutex.Unlock()
 }
 
@@ -501,12 +679,21 @@ func (p *ProjectRunner) getDoneOrRunningProcess(name string) *Process {
 	return p.getDoneProcess(name)
 }
 
-func (p *ProjectRunner) removeRunningProcess(process *Process) int {
+// removeRunningProcess deregisters process, but only if it is still the
+// instance registered under its name. A process can be superseded by a newer
+// incarnation (restart, update, scale), and a stale instance finishing later
+// must not evict the live one. It returns the number of remaining running
+// processes and whether the removal took place.
+func (p *ProjectRunner) removeRunningProcess(process *Process) (int, bool) {
 	p.runProcMutex.Lock()
-	delete(p.runningProcesses, process.getName())
-	runProcCount := len(p.runningProcesses)
-	p.runProcMutex.Unlock()
-	return runProcCount
+	defer p.runProcMutex.Unlock()
+	name := process.getName()
+	if current, ok := p.runningProcesses[name]; ok && current != process {
+		log.Debug().Msgf("Not removing superseded instance of %s", name)
+		return len(p.runningProcesses), false
+	}
+	delete(p.runningProcesses, name)
+	return len(p.runningProcesses), true
 }
 
 func (p *ProjectRunner) StartProcess(name string) error {
@@ -523,6 +710,16 @@ func (p *ProjectRunner) StartProcess(name string) error {
 				log.Error().Err(err).Msgf("Failed to resume schedule for process %s", name)
 			}
 		}
+		// Resume an existing registration - a stopped process's watch is paused,
+		// not removed, so resuming it avoids re-walking the whole tree. A
+		// process with no registration becomes watchable only now: it may have
+		// been deferred (disabled, or excluded from an `up <process>...`
+		// selection) when the watcher was first populated.
+		if p.isProcessWatchRegistered(name) {
+			p.watchResume(name)
+		} else {
+			p.watchAdd(&processConfig)
+		}
 	} else {
 		return fmt.Errorf("no such process: %s", name)
 	}
@@ -532,6 +729,11 @@ func (p *ProjectRunner) StartProcess(name string) error {
 
 func (p *ProjectRunner) StopProcess(name string) error {
 	log.Info().Msgf("Stopping %s", name)
+	// Claim the stop before touching the process: if a restart is between
+	// tearing the old incarnation down and starting its replacement, the
+	// shutdown below has nothing left to stop, and only this marker keeps the
+	// restart from undoing the stop.
+	p.noteStopRequest(name)
 	proc := p.getRunningProcess(name)
 
 	var err error
@@ -541,9 +743,17 @@ func (p *ProjectRunner) StopProcess(name string) error {
 			log.Err(err).Msgf("failed to stop process %s", name)
 		}
 	} else {
-		// If not running, check if it's scheduled. If so, we'll just pause the schedule.
+		// A process that is not running may still be armed to start again on
+		// its own - by a schedule, or by a file watch. Stopping it then means
+		// disarming it, which is a perfectly sensible request and not an error:
+		// a process reading Scheduled or Watching is exactly what the user is
+		// looking at when they ask for it to stop.
+		// A process caught between the teardown and the relaunch of a restart
+		// is not "not running" either - the request that just landed is what
+		// keeps its replacement from starting, which is as real a stop as any.
 		sched := p.processScheduler.Load()
-		if sched == nil || !sched.IsScheduled(name) {
+		isScheduled := sched != nil && sched.IsScheduled(name)
+		if !isScheduled && !p.isProcessWatched(name) && !p.isRestartInFlight(name) {
 			if _, ok := p.project.Processes[name]; !ok {
 				log.Error().Msgf("Process %s does not exist", name)
 				return fmt.Errorf("process %s does not exist", name)
@@ -552,6 +762,9 @@ func (p *ProjectRunner) StopProcess(name string) error {
 			return fmt.Errorf("process %s is not running", name)
 		}
 	}
+
+	// A deliberately stopped process must not be brought back by a file change.
+	p.watchPause(name)
 
 	// Pause schedule if it was running or scheduled
 	if sched := p.processScheduler.Load(); sched != nil && sched.IsScheduled(name) {
@@ -601,30 +814,54 @@ func (p *ProjectRunner) StopProcesses(names []string) (map[string]string, error)
 	return stopped, nil
 }
 
+// getNamespaceProcesses returns the namespace's processes in dependency order.
+// Processes that are disabled - by `disabled: true` or by exclusion from an
+// `up <process>...` selection - are included: a namespace operation is an
+// explicit request, just like `process start <name>`, which also ignores the
+// flag. Foreground processes are skipped, they can only run in the TUI.
+// Only the namespace's own members are returned - a dependency belonging to
+// another namespace is never started or stopped as a side effect.
 func (p *ProjectRunner) getNamespaceProcesses(namespace string) ([]string, error) {
 	if namespace == "" {
 		namespace = types.DefaultNamespace
 	}
-	// Use dependency order to ensuring correct order for bulk operations
-	allNames, err := p.project.GetDependenciesOrderNames()
-	if err != nil {
-		return nil, err
+	members := []string{}
+	foreground := 0
+	for name, proc := range p.project.Processes {
+		if !proc.Namespace.Contains(namespace) {
+			continue
+		}
+		if proc.IsForeground {
+			foreground++
+			continue
+		}
+		members = append(members, name)
+	}
+	if len(members) == 0 {
+		if foreground > 0 {
+			return nil, fmt.Errorf("namespace %s has only foreground processes, which are excluded from namespace operations", namespace)
+		}
+		return nil, fmt.Errorf("namespace %s not found (no processes assigned)", namespace)
+	}
+	// Map iteration order is random - sort to keep the dependency walk deterministic
+	slices.Sort(members)
+	isMember := make(map[string]bool, len(members))
+	for _, name := range members {
+		isMember[name] = true
 	}
 
-	var nsProcs []string
-	for _, name := range allNames {
-		if proc, ok := p.project.Processes[name]; ok {
-			procNs := proc.Namespace
-			if procNs == "" {
-				procNs = types.DefaultNamespace
-			}
-			if procNs == namespace {
-				nsProcs = append(nsProcs, name)
-			}
+	// Walk the dependency closure to get the correct order for bulk operations,
+	// then keep only the members - a dependency in another namespace can still
+	// order two members relative to each other.
+	nsProcs := []string{}
+	err := p.project.WithProcesses(members, func(proc types.ProcessConfig) error {
+		if isMember[proc.ReplicaName] {
+			nsProcs = append(nsProcs, proc.ReplicaName)
 		}
-	}
-	if len(nsProcs) == 0 {
-		return nil, fmt.Errorf("namespace %s not found (no processes assigned)", namespace)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return nsProcs, nil
 }
@@ -637,11 +874,9 @@ func (p *ProjectRunner) GetNamespaces() ([]string, error) {
 
 	nsMap := make(map[string]struct{})
 	for _, state := range states.States {
-		ns := state.Namespace
-		if ns == "" {
-			ns = types.DefaultNamespace
+		for _, ns := range state.Namespace.OrDefault() {
+			nsMap[ns] = struct{}{}
 		}
-		nsMap[ns] = struct{}{}
 	}
 
 	namespaces := make([]string, 0, len(nsMap))
@@ -759,7 +994,26 @@ waitingForStop:
 	return nil
 }
 
+// restartOpts tunes an individual restart. The zero value reproduces the
+// historical behavior of RestartProcess exactly.
+type restartOpts struct {
+	// skipBackoff omits the inter-incarnation sleep. Backoff exists to damp a
+	// crash loop; a restart the user asked for - directly or by saving a file -
+	// is not a crash, and the one-second floor would otherwise make every
+	// watch-triggered restart feel sluggish.
+	skipBackoff bool
+	// resetRestarts zeroes the cumulative restart counter. Without it a process
+	// that had already exhausted max_restarts would come back with its
+	// crash-loop budget still spent, so the user's fix-and-save would start it
+	// once and then refuse to restart it again.
+	resetRestarts bool
+}
+
 func (p *ProjectRunner) RestartProcess(name string) error {
+	return p.restartProcessWithOpts(name, restartOpts{})
+}
+
+func (p *ProjectRunner) restartProcessWithOpts(name string, opts restartOpts) error {
 	p.restartMutex.Lock()
 
 	// Check if restart is already in progress
@@ -777,7 +1031,7 @@ func (p *ProjectRunner) RestartProcess(name string) error {
 	p.restartMutex.Unlock()
 
 	// Perform the restart
-	err := p.doRestart(name)
+	err := p.doRestart(name, opts)
 
 	// Complete the operation and notify waiters
 	call.err = err
@@ -788,26 +1042,71 @@ func (p *ProjectRunner) RestartProcess(name string) error {
 	delete(p.restartCalls, name)
 	p.restartMutex.Unlock()
 
+	// The completion check skips a project whose running set empties while a
+	// restart is registered, on the assumption that the replacement is coming.
+	// A restart that ended without one - abandoned by a stop, or failed - has
+	// to re-arm that check, or the project stays up with nothing running.
+	p.retriggerCompletionCheck()
+
 	return err
 }
 
-func (p *ProjectRunner) doRestart(name string) error {
+func (p *ProjectRunner) doRestart(name string, opts restartOpts) error {
 	log.Debug().Msgf("Restarting %s", name)
+	// Sampled before the teardown and compared after it: any stop requested in
+	// between outranks this restart, because it is the more recent intent.
+	epoch := p.stopEpoch(name)
 	proc := p.getRunningProcess(name)
 	if proc != nil {
+		// Mark before shutting down: the exit is a consequence of this
+		// restart, and onProcessEnd must not read it as the process ending.
+		proc.markRestarting()
 		err := proc.shutDownNoRestart()
 		if err != nil {
 			log.Err(err).Msgf("failed to stop process %s", name)
 			return err
 		}
-		time.Sleep(proc.getBackoff())
+		// A process that never started is still parked in waitIfNeeded. The
+		// shutdown above releases it; wait for its goroutine to actually exit so
+		// the replacement is the only incarnation in flight. Already started
+		// processes are not waited for here - their shutdown honours the
+		// configured shutdown parameters and can take arbitrarily long.
+		if !proc.hasStarted() && !proc.waitUntilTerminated(pendingTerminationTimeout) {
+			log.Warn().Msgf("process %s did not stop within %v, starting a new instance anyway", name, pendingTerminationTimeout)
+		}
+		if !opts.skipBackoff {
+			time.Sleep(proc.getBackoff())
+		}
 	}
 
-	if processConfig, ok := p.project.Processes[name]; ok {
-		p.runProcess(&processConfig)
-	} else {
+	if opts.resetRestarts {
+		p.resetRestartCount(name)
+	}
+
+	return p.launchUnlessStopped(name, epoch)
+}
+
+// launchUnlessStopped starts the replacement incarnation unless a stop was
+// requested for the process since epoch, in which case the restart is dropped
+// and the process stays down.
+//
+// The comparison and the launch share restartMutex because at this point the
+// old incarnation is already gone: a stop slipping in between would find
+// nothing to stop, and the replacement would come up in spite of it.
+func (p *ProjectRunner) launchUnlessStopped(name string, epoch uint64) error {
+	p.restartMutex.Lock()
+	defer p.restartMutex.Unlock()
+
+	if p.stopEpochs[name] != epoch {
+		log.Debug().Msgf("Restart of %s abandoned: it was stopped while restarting", name)
+		return nil
+	}
+
+	processConfig, ok := p.project.Processes[name]
+	if !ok {
 		return fmt.Errorf("no such process: %s", name)
 	}
+	p.runProcess(&processConfig)
 	return nil
 }
 
@@ -827,9 +1126,7 @@ func (p *ProjectRunner) SetProcessInfo(config *types.ProcessConfig) error {
 	if config.Name == "" {
 		return fmt.Errorf("process name is required")
 	}
-	if config.Namespace == "" {
-		config.Namespace = types.DefaultNamespace
-	}
+	config.Namespace = config.Namespace.Normalized()
 	p.project.Processes[config.Name] = *config
 	return nil
 }
@@ -957,6 +1254,11 @@ func (p *ProjectRunner) shutDownAndWait(shutdownOrder []*Process) {
 }
 
 func (p *ProjectRunner) ShutDownProject() error {
+	// Stop watching before anything is torn down: a file touched by a
+	// shutdown.command must not trigger a restart of a process that is already
+	// on its way out.
+	p.stopWatcher()
+
 	p.runProcMutex.Lock()
 	shutdownOrder := []*Process{}
 	if p.isOrderedShutdown {
@@ -1176,7 +1478,7 @@ func (p *ProjectRunner) updateReplicaCount(name string, scale int) {
 func (p *ProjectRunner) renameProcess(name string, newName string) {
 	process := p.getRunningProcess(name)
 	if process != nil {
-		p.removeRunningProcess(process)
+		_, _ = p.removeRunningProcess(process)
 		process.setName(newName)
 		p.addRunningProcess(process)
 	}
@@ -1198,6 +1500,13 @@ func (p *ProjectRunner) renameProcess(name string, newName string) {
 		procConf.ReplicaName = newName
 		p.project.Processes[newName] = procConf
 	}
+	// The watcher is keyed by replica name, and scaling down to 1 renames
+	// e.g. api-0 to api. Re-key it here, alongside the logs and state above,
+	// or the watch would be stranded under a name nothing looks up.
+	p.watchRemove(name)
+	if ok {
+		p.watchAdd(&procConf)
+	}
 }
 func (p *ProjectRunner) removeProcessLogs(name string) *pclog.ProcessLogBuffer {
 	p.logsMutex.Lock()
@@ -1211,6 +1520,13 @@ func (p *ProjectRunner) removeProcessLogs(name string) *pclog.ProcessLogBuffer {
 }
 
 func (p *ProjectRunner) removeProcess(name string) error {
+	if sched := p.processScheduler.Load(); sched != nil {
+		if err := sched.RemoveProcess(name); err != nil {
+			return err
+		}
+	}
+
+	p.watchRemove(name)
 	p.removeProcessLogs(name)
 	p.procConfMutex.Lock()
 	delete(p.project.Processes, name)
@@ -1241,17 +1557,42 @@ func (p *ProjectRunner) addProcessAndRun(proc types.ProcessConfig) {
 	delete(p.doneProcesses, proc.ReplicaName)
 	p.doneProcMutex.Unlock()
 	p.initProcessLog(proc.ReplicaName)
-	if !proc.IsDeferred() {
+	if proc.Schedule.IsScheduled() {
+		p.scheduleProcess(proc.ReplicaName, proc)
+	} else if !proc.IsDeferred() {
 		p.runProcess(&proc)
+	}
+	// UpdateProject routes every add, update and scale-up through here, so this
+	// single hook keeps the watcher reconciled across reloads.
+	p.watchAdd(&proc)
+}
+
+// scheduleProcess applies the same schedule registration at startup and reload.
+func (p *ProjectRunner) scheduleProcess(name string, proc types.ProcessConfig) {
+	if !proc.Schedule.IsScheduled() {
+		return
+	}
+	sched := p.processScheduler.Load()
+	if sched == nil {
+		return
+	}
+	var err error
+	if proc.Disabled {
+		err = sched.AddPausedProcess(name, proc.Schedule)
+	} else {
+		err = sched.AddProcess(name, proc.Schedule)
+	}
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to schedule process %s", name)
 	}
 }
 
-func (p *ProjectRunner) selectRunningProcesses(procList []string) error {
+func selectRunningProcesses(project *types.Project, procList []string) error {
 	if len(procList) == 0 {
 		return nil
 	}
 	newProcMap := types.Processes{}
-	err := p.project.WithProcesses(procList, func(process types.ProcessConfig) error {
+	err := project.WithProcesses(procList, func(process types.ProcessConfig) error {
 		if process.IsForeground {
 			return nil
 		}
@@ -1262,22 +1603,22 @@ func (p *ProjectRunner) selectRunningProcesses(procList []string) error {
 		log.Err(err).Msgf("Failed select processes")
 		return err
 	}
-	for name, proc := range p.project.Processes {
+	for name, proc := range project.Processes {
 		if _, ok := newProcMap[name]; !ok {
 			proc.Disabled = true
 		} else {
 			proc.Disabled = false
 		}
-		p.project.Processes[name] = proc
+		project.Processes[name] = proc
 	}
 	return nil
 }
 
-func (p *ProjectRunner) selectRunningProcessesNoDeps(procList []string) error {
+func selectRunningProcessesNoDeps(project *types.Project, procList []string) error {
 	if len(procList) == 0 {
 		return nil
 	}
-	for name, proc := range p.project.Processes {
+	for name, proc := range project.Processes {
 		found := slices.Contains(procList, proc.Name)
 		if !found {
 			proc.Disabled = true
@@ -1285,10 +1626,51 @@ func (p *ProjectRunner) selectRunningProcessesNoDeps(procList []string) error {
 			proc.DependsOn = types.DependsOnConfig{}
 			proc.Disabled = false
 		}
-		p.project.Processes[name] = proc
+		project.Processes[name] = proc
 	}
 
 	return nil
+}
+
+// applySelection narrows project to the `up <process>...` selection by
+// disabling everything that wasn't selected.
+func (p *ProjectRunner) applySelection(project *types.Project) error {
+	if p.noDeps {
+		return selectRunningProcessesNoDeps(project, p.processesToRun)
+	}
+	return selectRunningProcesses(project, p.processesToRun)
+}
+
+// reapplySelection re-applies the `up <process>...` selection to a freshly
+// loaded project, so that a reload or an update doesn't resurrect - and start -
+// the processes the user left out. Unlike the initial selection, a name that
+// the new configuration no longer defines is dropped instead of failing the
+// whole update: that process is about to be removed from the project anyway.
+func (p *ProjectRunner) reapplySelection(project *types.Project) error {
+	if len(p.processesToRun) == 0 {
+		return nil
+	}
+	selected := make([]string, 0, len(p.processesToRun))
+	for _, name := range p.processesToRun {
+		if _, err := project.GetProcesses(name); err != nil {
+			log.Info().Msgf("Selected process %s is no longer defined, dropping it from the selection", name)
+			continue
+		}
+		selected = append(selected, name)
+	}
+	if len(selected) == 0 {
+		// Nothing of the original selection survived. Keep the remaining
+		// processes deferred rather than starting the entire project.
+		for name, proc := range project.Processes {
+			proc.Disabled = true
+			project.Processes[name] = proc
+		}
+		return nil
+	}
+	if p.noDeps {
+		return selectRunningProcessesNoDeps(project, selected)
+	}
+	return selectRunningProcesses(project, selected)
 }
 
 func (p *ProjectRunner) GetLogLength() int {
@@ -1349,6 +1731,8 @@ func NewProjectRunner(opts *ProjectOpts) (*ProjectRunner, error) {
 	runner := &ProjectRunner{
 		project:              opts.project,
 		admitters:            opts.admitters,
+		processesToRun:       opts.processesToRun,
+		noDeps:               opts.noDeps,
 		mainProcess:          opts.mainProcess,
 		mainProcessArgs:      opts.mainProcessArgs,
 		isTuiOn:              opts.isTuiOn,
@@ -1357,6 +1741,7 @@ func NewProjectRunner(opts *ProjectOpts) (*ProjectRunner, error) {
 		truncateLogs:         opts.truncateLogs,
 		refRate:              opts.refRate,
 		withRecursiveMetrics: opts.withRecursiveMetrics,
+		noWatch:              opts.noWatch,
 		projectState: &types.ProjectState{
 			FileNames: opts.project.FileNames,
 			StartTime: time.Now(),
@@ -1373,12 +1758,7 @@ func NewProjectRunner(opts *ProjectOpts) (*ProjectRunner, error) {
 		runner.projectState.ProjectName = name
 	}
 
-	if opts.noDeps {
-		err = runner.selectRunningProcessesNoDeps(opts.processesToRun)
-	} else {
-		err = runner.selectRunningProcesses(opts.processesToRun)
-	}
-	if err != nil {
+	if err = runner.applySelection(runner.project); err != nil {
 		return nil, err
 	}
 	runner.projectState.ProcessNum = len(runner.project.Processes)
@@ -1387,10 +1767,49 @@ func NewProjectRunner(opts *ProjectOpts) (*ProjectRunner, error) {
 	return runner, nil
 }
 
+// beginUpdate marks a project or process update as in flight. An update stops
+// and restarts processes, so while one is running the project must not mistake
+// a momentarily empty running set for "all processes are done". Returns the
+// function that ends the update.
+func (p *ProjectRunner) beginUpdate() func() {
+	p.updatesInFlight.Add(1)
+	return func() {
+		if p.updatesInFlight.Add(-1) != 0 {
+			return
+		}
+		// The update may have removed the last running process for good -
+		// re-trigger the completion check that was suppressed while it ran.
+		p.retriggerCompletionCheck()
+	}
+}
+
+// retriggerCompletionCheck re-runs the project completion check for a project
+// with nothing running. The check is skipped while an update or a restart is
+// registered, since either is expected to bring a process back; when one ends
+// without doing so, the zero count it suppressed has already been consumed, so
+// nothing else would ever complete the project.
+func (p *ProjectRunner) retriggerCompletionCheck() {
+	p.runProcMutex.Lock()
+	running := len(p.runningProcesses)
+	p.runProcMutex.Unlock()
+	if running > 0 {
+		return
+	}
+	select {
+	case p.procCompleteChannel <- 0:
+	default:
+	}
+}
+
 func (p *ProjectRunner) UpdateProject(project *types.Project) (map[string]string, error) {
-	// Re-apply the load-time admission policies (e.g. --namespace) so that
-	// excluded processes don't get resurrected by a project reload or update.
+	defer p.beginUpdate()()
+	// Re-apply the load-time admission policies (e.g. --namespace) and the
+	// `up <process>...` selection so that excluded processes don't get
+	// resurrected - and started - by a project reload or update.
 	admitter.ApplyToProject(project, p.admitters)
+	if err := p.reapplySelection(project); err != nil {
+		return nil, err
+	}
 	newProcs := make(map[string]types.ProcessConfig)
 	delProcs := make(map[string]types.ProcessConfig)
 	updatedProcs := make(map[string]types.ProcessConfig)
@@ -1467,6 +1886,7 @@ func (p *ProjectRunner) ReloadProject() (map[string]string, error) {
 	return status, nil
 }
 func (p *ProjectRunner) UpdateProcess(updated *types.ProcessConfig) error {
+	defer p.beginUpdate()()
 	isScaleChanged := false
 	validateProbes(updated.LivenessProbe)
 	validateProbes(updated.ReadinessProbe)

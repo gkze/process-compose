@@ -186,6 +186,20 @@
       },
       "type": "object"
     },
+    "Namespaces": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ],
+      "description": "Namespace(s) the process belongs to (string or list of strings, default: \"default\")"
+    },
     "Probe": {
       "properties": {
         "exec": {
@@ -272,7 +286,7 @@
           "type": "string"
         },
         "namespace": {
-          "type": "string"
+          "$ref": "#/$defs/Namespaces"
         },
         "replicas": {
           "type": "integer"
@@ -324,6 +338,9 @@
         },
         "schedule": {
           "$ref": "#/$defs/ScheduleConfig"
+        },
+        "watch": {
+          "$ref": "#/$defs/WatchConfig"
         },
         "mcp": {
           "$ref": "#/$defs/MCPProcessConfig"
@@ -544,6 +561,55 @@
     },
     "Vars": {
       "type": "object"
+    },
+    "WatchConfig": {
+      "properties": {
+        "paths": {
+          "items": {
+            "$ref": "#/$defs/WatchPath"
+          },
+          "type": "array"
+        },
+        "cascade": {
+          "type": "boolean"
+        },
+        "debounce": {
+          "type": "string"
+        },
+        "max_entries": {
+          "type": "integer"
+        },
+        "buffer_size": {
+          "type": "integer"
+        },
+        "disable_default_excludes": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "WatchPath": {
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "include": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "exclude": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object",
+      "required": [
+        "path"
+      ]
     }
   }
 }

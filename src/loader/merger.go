@@ -16,6 +16,23 @@ type specials struct {
 var processSpecials = &specials{
 	m: map[reflect.Type]func(dst, src reflect.Value) error{
 		reflect.TypeFor[types.Environment](): mergeSlice(toEnvVarMap, toEnvVarSlice),
+		// namespaces are overridden as a whole, not appended to
+		reflect.TypeFor[types.Namespaces](): func(dst, src reflect.Value) error {
+			if src.Len() > 0 {
+				dst.Set(src)
+			}
+			return nil
+		},
+		// watch paths are overridden as a whole. mergeProcess uses
+		// WithAppendSlice, so without this an override file would add its paths
+		// to the base ones instead of replacing them - leaving no way to narrow
+		// a watch in an override.
+		reflect.TypeFor[[]types.WatchPath](): func(dst, src reflect.Value) error {
+			if src.Len() > 0 {
+				dst.Set(src)
+			}
+			return nil
+		},
 	},
 }
 
@@ -68,7 +85,7 @@ func toEnvVarMap(s any) (map[any]any, error) {
 	}
 	m := map[any]any{}
 	for _, v := range envVars {
-		kv := strings.Split(v, "=")
+		kv := strings.SplitN(v, "=", 2)
 		if len(kv) == 2 {
 			m[kv[0]] = kv[1]
 		}

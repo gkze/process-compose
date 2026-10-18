@@ -380,12 +380,16 @@ func TestProjectRunner_getNamespaceProcesses(t *testing.T) {
 		namespace string
 		want      []string
 		depsOrder []string
+		// wantOrdered compares want to the result as an ordered slice instead
+		// of a set. Only meaningful when the expected order is deterministic.
+		wantOrdered bool
+		wantErr     string
 	}{
 		{
 			name: "DefaultNamespace",
 			processes: map[string]types.ProcessConfig{
-				"p1": {Name: "p1", ReplicaName: "p1", Namespace: "default"},
-				"p2": {Name: "p2", ReplicaName: "p2", Namespace: "other"},
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"default"}},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"other"}},
 				"p3": {Name: "p3", ReplicaName: "p3"}, // default implied
 			},
 			namespace: "default",
@@ -395,8 +399,8 @@ func TestProjectRunner_getNamespaceProcesses(t *testing.T) {
 		{
 			name: "OtherNamespace",
 			processes: map[string]types.ProcessConfig{
-				"p1": {Name: "p1", ReplicaName: "p1", Namespace: "default"},
-				"p2": {Name: "p2", ReplicaName: "p2", Namespace: "other"},
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"default"}},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"other"}},
 			},
 			namespace: "other",
 			want:      []string{"p2"},
@@ -405,7 +409,7 @@ func TestProjectRunner_getNamespaceProcesses(t *testing.T) {
 		{
 			name: "EmptyNamespaceSameAsDefault",
 			processes: map[string]types.ProcessConfig{
-				"p1": {Name: "p1", ReplicaName: "p1", Namespace: "default"},
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"default"}},
 			},
 			namespace: "",
 			want:      []string{"p1"},
@@ -414,12 +418,110 @@ func TestProjectRunner_getNamespaceProcesses(t *testing.T) {
 		{
 			name: "RespectDependencyOrder",
 			processes: map[string]types.ProcessConfig{
-				"p1": {Name: "p1", ReplicaName: "p1", Namespace: "ns1"},
-				"p2": {Name: "p2", ReplicaName: "p2", Namespace: "ns1", DependsOn: types.DependsOnConfig{"p1": {}}},
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1"}},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"ns1"}, DependsOn: types.DependsOnConfig{"p1": {}}},
 			},
 			namespace: "ns1",
 			want:      []string{"p1", "p2"},
 			depsOrder: []string{"p1", "p2"},
+		},
+		{
+			name: "MultiNamespaceFirst",
+			processes: map[string]types.ProcessConfig{
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1", "ns2"}},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"ns2"}},
+			},
+			namespace: "ns1",
+			want:      []string{"p1"},
+			depsOrder: []string{"p1", "p2"},
+		},
+		{
+			name: "MultiNamespaceSecond",
+			processes: map[string]types.ProcessConfig{
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1", "ns2"}},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"ns2"}},
+			},
+			namespace: "ns2",
+			want:      []string{"p1", "p2"},
+			depsOrder: []string{"p1", "p2"},
+		},
+		{
+			// Every member excluded from an `up <process>...` selection.
+			// Addresses issue #528.
+			name: "AllMembersDisabled",
+			processes: map[string]types.ProcessConfig{
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1"}},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"ns2"}, Disabled: true},
+				"p3": {Name: "p3", ReplicaName: "p3", Namespace: types.Namespaces{"ns2"}, Disabled: true,
+					DependsOn: types.DependsOnConfig{"p2": {}}},
+			},
+			namespace:   "ns2",
+			want:        []string{"p2", "p3"},
+			wantOrdered: true,
+		},
+		{
+			name: "MixedEnabledAndDisabledMembers",
+			processes: map[string]types.ProcessConfig{
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1"}, Disabled: true},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"ns1"},
+					DependsOn: types.DependsOnConfig{"p1": {}}},
+			},
+			namespace:   "ns1",
+			want:        []string{"p1", "p2"},
+			wantOrdered: true,
+		},
+		{
+			name: "ForegroundMemberExcluded",
+			processes: map[string]types.ProcessConfig{
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1"}},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"ns1"}, IsForeground: true},
+			},
+			namespace: "ns1",
+			want:      []string{"p1"},
+		},
+		{
+			name: "CrossNamespaceDependencyNotIncluded",
+			processes: map[string]types.ProcessConfig{
+				"db": {Name: "db", ReplicaName: "db", Namespace: types.Namespaces{"infra"}},
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1"},
+					DependsOn: types.DependsOnConfig{"db": {}}},
+			},
+			namespace: "ns1",
+			want:      []string{"p1"},
+		},
+		{
+			// p2 -> db -> p1: the members are ordered only through a
+			// dependency that belongs to another namespace.
+			name: "OrderThroughCrossNamespaceDependency",
+			processes: map[string]types.ProcessConfig{
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1"}},
+				"db": {Name: "db", ReplicaName: "db", Namespace: types.Namespaces{"infra"},
+					DependsOn: types.DependsOnConfig{"p1": {}}},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"ns1"},
+					DependsOn: types.DependsOnConfig{"db": {}}},
+			},
+			namespace:   "ns1",
+			want:        []string{"p1", "p2"},
+			wantOrdered: true,
+		},
+		{
+			name: "UnknownNamespace",
+			processes: map[string]types.ProcessConfig{
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1"}},
+			},
+			namespace: "nope",
+			wantErr:   "namespace nope not found (no processes assigned)",
+		},
+		{
+			// The namespace is listed by `namespace list` and by the TUI modal,
+			// so the error has to say why it can't be operated on.
+			name: "AllMembersForeground",
+			processes: map[string]types.ProcessConfig{
+				"p1": {Name: "p1", ReplicaName: "p1", Namespace: types.Namespaces{"ns1"}, IsForeground: true},
+				"p2": {Name: "p2", ReplicaName: "p2", Namespace: types.Namespaces{"ns2"}},
+			},
+			namespace: "ns1",
+			wantErr:   "namespace ns1 has only foreground processes, which are excluded from namespace operations",
 		},
 	}
 
@@ -434,8 +536,24 @@ func TestProjectRunner_getNamespaceProcesses(t *testing.T) {
 			}
 
 			got, err := runner.getNamespaceProcesses(tt.namespace)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("getNamespaceProcesses() = %v, want error %q", got, tt.wantErr)
+				}
+				if err.Error() != tt.wantErr {
+					t.Errorf("getNamespaceProcesses() error = %q, want %q", err.Error(), tt.wantErr)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("getNamespaceProcesses error: %v", err)
+			}
+
+			if tt.wantOrdered {
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("getNamespaceProcesses() = %v, want %v (in order)", got, tt.want)
+				}
+				return
 			}
 
 			gotMap := make(map[string]bool)

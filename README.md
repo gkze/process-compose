@@ -58,6 +58,7 @@ Check the [Documentation](https://f1bonacc1.github.io/process-compose/launcher/)
 - On the fly Project update
 - [Recipes](https://github.com/F1bonacc1/process-compose-recipes) Management
 - Scheduled Processes (cron and interval-based)
+- [File Watching](https://f1bonacc1.github.io/process-compose/watch/) - restart a process when its files change, optionally cascading to its dependents
 - Dependency Graph visualization (CLI, TUI, and API)
 - [MCP Server](https://f1bonacc1.github.io/process-compose/mcp-server/) integration for AI assistants — expose processes as tools/resources and (optionally) the project's own control plane (start/stop/scale/list/logs)
 - Process Monitor (Push Notifications)
@@ -79,6 +80,10 @@ See the upstream [Installation Instructions](https://f1bonacc1.github.io/process
 [Quick Start](https://f1bonacc1.github.io/process-compose/intro/)
 
 [Documentation](https://f1bonacc1.github.io/process-compose/launcher/)
+
+## Video Series
+
+[Process Compose Intro](https://www.youtube.com/playlist?list=PLY3UbHll3zOI) is a ten part course, about 45 minutes in total. It goes from a first config through dependencies, health checks, restart policies, the TUI, templating, namespaces, the REST API and CI pipelines. Every episode has chapter markers.
 
 ## How to Contribute
 

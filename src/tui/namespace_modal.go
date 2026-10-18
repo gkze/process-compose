@@ -180,16 +180,14 @@ func (nm *namespaceModal) getNamespacesAndOptions() ([]string, []string) {
 	stats := make(map[string]*nsStat)
 
 	for _, state := range states.States {
-		ns := state.Namespace
-		if ns == "" {
-			ns = types.DefaultNamespace
-		}
-		if _, ok := stats[ns]; !ok {
-			stats[ns] = &nsStat{}
-		}
-		stats[ns].total++
-		if state.IsRunning {
-			stats[ns].running++
+		for _, ns := range state.Namespace.OrDefault() {
+			if _, ok := stats[ns]; !ok {
+				stats[ns] = &nsStat{}
+			}
+			stats[ns].total++
+			if state.IsRunning {
+				stats[ns].running++
+			}
 		}
 	}
 
@@ -225,12 +223,15 @@ func (nm *namespaceModal) executeOperation(namespace string, operation namespace
 		log.Error().Msgf("Unknown operation: %s", operation)
 		return
 	}
+	// Stop the progress animation before reporting the result
+	cancel()
 
 	if err != nil {
 		log.Err(err).Msgf("Failed to %s namespace %s", operation, namespace)
-	} else {
-		log.Info().Msgf("Namespace %s %sed", namespace, operation)
+		nm.view.showError(fmt.Sprintf("Failed to %s namespace '%s': %s", operation, namespace, err.Error()))
+		return
 	}
+	log.Info().Msgf("Namespace %s %sed", namespace, operation)
 }
 
 func (nm *namespaceModal) StylesChanged(s *config.Styles) {

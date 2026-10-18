@@ -410,6 +410,8 @@ This command will:
 
 **Note:** If TUI or TUI client is being used, you can trigger the original files reload with the `Ctrl+L` shortcut.
 
+**Note:** An update or a reload preserves the process selection the project was started with. Processes excluded by `process-compose up <process>...` or by `--namespace` stay excluded, they are not started by the update. If a process named on the command line no longer exists in the updated configuration, it is dropped from the selection and removed from the project.
+
 ### Process Edit
 
 To edit a single process:
@@ -493,9 +495,52 @@ process-compose -n ns1 -n ns3
 
 If a process in a selected namespace `depends_on` a process from a namespace that was not selected, that dependency is pruned: the process starts without waiting for its excluded dependency (a warning is logged at startup). This makes it possible to start a subset of the stack when its dependencies are already running elsewhere.
 
+### Multiple Namespaces
+
+A process can belong to multiple namespaces, similar to docker-compose profiles. This is useful when teams share one large configuration and common dependencies should be part of several selectable groups:
+
+```yaml
+processes:
+  billing_api:
+    command: "./billing_api"
+    namespace: ["billing"]
+
+  auth_api:
+    command: "./auth_api"
+    namespace: auth # a single namespace can be a plain string
+
+  database:
+    command: "./run_db"
+    namespace: ["billing", "auth"] # needed by both teams
+```
+
+```shell
+process-compose -n billing
+# starts billing_api and database
+
+process-compose -n auth
+# starts auth_api and database
+```
+
+A process is selected by `-n <namespace>` if the namespace is **any** of its namespaces. The same applies to namespace operations: `process-compose namespace stop billing` will stop `database`, even though it also belongs to the `auth` namespace.
+
+When merging multiple configuration files (or using `extends`), a non-empty `namespace` in the override **replaces** the base value, it is not appended to it.
+
 ### Namespace Operations
 
 You can perform bulk operations on namespaces using the CLI or TUI.
+
+A namespace operation acts on **every configured member** of the namespace, including processes that are not running: processes left out of an `up <process>...` selection, and processes marked `disabled: true`. This makes it possible to define a catalog of services, start a small surface initially, and add a related surface later:
+
+```shell
+process-compose up customer-api
+# in another terminal - starts admin-api and admin-ui, which were not part of the initial selection
+process-compose namespace start admin
+```
+
+Namespace operations act on the namespace's own members only. A `depends_on` target that belongs to a different namespace is neither started nor stopped as a side effect, so stopping one namespace won't take down a database shared with another. A member whose dependency isn't running starts without waiting for it (an error is logged), the same way a cross-namespace dependency is pruned when starting a subset of namespaces with `-n`.
+
+[Foreground processes](launcher.md#foreground-processes) are the exception: they can only be started manually from the TUI, so they are skipped by namespace operations. A namespace that contains nothing else is still listed, but operating on it reports that it has only foreground processes.
 
 #### CLI Commands
 

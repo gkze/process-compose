@@ -73,6 +73,11 @@ func (pv *pcView) fillTableData() {
 	// Update activity/silence monitor notifications
 	pv.monitor.updateNotifications(states.States)
 
+	// Report watch-triggered restarts, coalesced so a burst stays readable.
+	if msg := pv.watchNotifier.observe(states.States, time.Now()); msg != "" {
+		pv.attentionMessage(msg, watchMessageDuration, false)
+	}
+
 	showPass := false
 	row := 1
 	succeeded := true
@@ -122,14 +127,14 @@ func (pv *pcView) fillTableData() {
 
 	if pv.procCountCell != nil {
 		nsLbl := ""
-		if !pv.isNsSelected(AllNS) {
+		if pv.getSelectedNs() != AllNS {
 			nsLbl = " (" + pv.getSelectedNs() + ")"
 		}
 		pv.procCountCell.SetText(fmt.Sprintf("%d/%d%s", runningProcCount, len(pv.procNames), nsLbl))
 	}
 	if pv.procMemCpuCell != nil {
 		nsLbl := ""
-		if !pv.isNsSelected(AllNS) {
+		if pv.getSelectedNs() != AllNS {
 			nsLbl = " (" + pv.getSelectedNs() + ")"
 		}
 		pv.procMemCpuCell.SetText(fmt.Sprintf("%s | %s%s", getStrForMem(totalMem, true), getStrForCPU(totalCPU, true), nsLbl))
@@ -440,7 +445,8 @@ func (pv *pcView) getIconForState(state types.ProcessState) (string, tcell.Color
 		return "●", pv.styles.ProcTable().FgColor.Color()
 	case types.ProcessStatePending,
 		types.ProcessStateRestarting,
-		types.ProcessStateScheduled:
+		types.ProcessStateScheduled,
+		types.ProcessStateWatching:
 		return "●", pv.styles.ProcTable().FgPending.Color()
 	case types.ProcessStateCompleted:
 		if state.IsExitCodeSuccess() {
@@ -540,7 +546,7 @@ func (pv *pcView) getTableRowValues(state types.ProcessState) tableRowValues {
 		fgColor:   color,
 		pid:       strconv.Itoa(state.Pid),
 		name:      state.Name,
-		ns:        state.Namespace,
+		ns:        state.Namespace.String(),
 		status:    types.DisplayProcessStatus(state),
 		age:       state.SystemTime,
 		health:    state.Health,

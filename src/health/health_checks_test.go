@@ -2,6 +2,7 @@ package health
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -82,6 +83,26 @@ func TestProber_getHttpChecker(t *testing.T) {
 			},
 		},
 		{
+			name: "Happy path: include method in http probe",
+			fields: fields{
+				Name:  "http",
+				Probe: Probe{HttpGet: &HttpProbe{Method: http.MethodHead}},
+			},
+			want: &checkers.HTTP{
+				Config: &checkers.HTTPConfig{
+					URL: &url.URL{
+						Scheme: "http",
+						Host:   "127.0.0.1",
+						Path:   "/",
+					},
+					Method:     http.MethodHead,
+					StatusCode: 200,
+					Client:     &http.Client{Timeout: time.Second},
+					Timeout:    time.Second,
+				},
+			},
+		},
+		{
 			name: "Happy path: error codes are not allowed",
 			fields: fields{
 				Name:  "http",
@@ -118,6 +139,54 @@ func TestProber_getHttpChecker(t *testing.T) {
 
 			if !cmp.Equal(got, tt.want) {
 				t.Errorf("Probe.getHttpChecker diff = %s", cmp.Diff(got, tt.want))
+			}
+		})
+	}
+}
+
+// TestProber_httpMethodSentToServer checks the configured method is the one
+// the probed server receives, so a server that only answers that method is
+// reported healthy.
+func TestProber_httpMethodSentToServer(t *testing.T) {
+	for _, method := range []string{"", http.MethodHead, http.MethodPost} {
+		want := method
+		if want == "" {
+			want = http.MethodGet
+		}
+		t.Run(want, func(t *testing.T) {
+			received := make(chan string, 1)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				select {
+				case received <- r.Method:
+				default:
+				}
+				if r.Method != want {
+					w.WriteHeader(http.StatusMethodNotAllowed)
+				}
+			}))
+			defer srv.Close()
+			srvUrl, err := url.Parse(srv.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			p, err := New("http", Probe{HttpGet: &HttpProbe{
+				Method: method,
+				Host:   srvUrl.Hostname(),
+				Port:   srvUrl.Port(),
+			}}, nil, *command.DefaultShellConfig(), func(bool, bool, string, any) {})
+			if err != nil {
+				t.Fatal(err)
+			}
+			checker, err := p.getHttpChecker()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := checker.Status(); err != nil {
+				t.Errorf("probe status error = %v", err)
+			}
+			if got := <-received; got != want {
+				t.Errorf("server received method %s, want %s", got, want)
 			}
 		})
 	}

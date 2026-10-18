@@ -1,9 +1,12 @@
 package loader
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/f1bonacc1/process-compose/src/types"
 )
 
 func Test_autoDiscoverComposeFile(t *testing.T) {
@@ -218,5 +221,41 @@ func TestLoad_ReloadAfterExtends(t *testing.T) {
 	}
 	if _, err := Load(opts2); err != nil {
 		t.Fatalf("reload after extends failed: %v", err)
+	}
+}
+
+// TestLoad_HttpProbeMethod checks the http_get method survives loading (which
+// renders templates and applies probe defaults before validation) and that a
+// non-standard method fails a strict load.
+func TestLoad_HttpProbeMethod(t *testing.T) {
+	load := func(t *testing.T, method string) (*types.Project, error) {
+		t.Helper()
+		file := filepath.Join(t.TempDir(), "process-compose.yaml")
+		yaml := `
+is_strict: true
+processes:
+  web:
+    command: "sleep 1"
+    readiness_probe:
+      http_get:
+        method: ` + method + `
+        port: 8080
+`
+		if err := os.WriteFile(file, []byte(yaml), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return Load(&LoaderOptions{FileNames: []string{file}, IsInternalLoader: true})
+	}
+
+	project, err := load(t, "HEAD")
+	if err != nil {
+		t.Fatalf("load with method HEAD failed: %v", err)
+	}
+	if got := project.Processes["web"].ReadinessProbe.HttpGet.Method; got != "HEAD" {
+		t.Errorf("http_get.method = %s, want HEAD", got)
+	}
+
+	if _, err := load(t, "FETCH"); err == nil {
+		t.Error("strict load with method FETCH succeeded, want error")
 	}
 }

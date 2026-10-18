@@ -1888,8 +1888,12 @@ func (p *ProjectRunner) ReloadProject() (map[string]string, error) {
 func (p *ProjectRunner) UpdateProcess(updated *types.ProcessConfig) error {
 	defer p.beginUpdate()()
 	isScaleChanged := false
-	validateProbes(updated.LivenessProbe)
-	validateProbes(updated.ReadinessProbe)
+	if err := validateProbes(updated.LivenessProbe); err != nil {
+		return fmt.Errorf("process '%s': liveness_probe: %w", updated.Name, err)
+	}
+	if err := validateProbes(updated.ReadinessProbe); err != nil {
+		return fmt.Errorf("process '%s': readiness_probe: %w", updated.Name, err)
+	}
 	updated.AssignProcessExecutableAndArgs(p.project.ShellConfig, p.project.ShellConfig.ElevatedShellArg)
 	if currentProc, ok := p.project.Processes[updated.ReplicaName]; ok {
 		equal := currentProc.Compare(updated)
@@ -1952,10 +1956,12 @@ func runCmd(envCmd string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func validateProbes(probe *health.Probe) {
-	if probe != nil {
-		probe.ValidateAndSetDefaults()
+func validateProbes(probe *health.Probe) error {
+	if probe == nil {
+		return nil
 	}
+	probe.ValidateAndSetDefaults()
+	return probe.Validate()
 }
 func (p *ProjectRunner) GetProcessPty(name string) *os.File {
 	proc := p.getRunningProcess(name)

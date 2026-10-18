@@ -104,6 +104,20 @@
           "host": {
             "type": "string"
           },
+          "method": {
+            "enum": [
+              "GET",
+              "HEAD",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE",
+              "CONNECT",
+              "OPTIONS",
+              "TRACE"
+            ],
+            "type": "string"
+          },
           "numPort": {
             "format": "int64",
             "type": "integer"

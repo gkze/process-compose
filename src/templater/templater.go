@@ -53,6 +53,7 @@ func (t *Templater) renderProbe(probe *health.Probe, procConf *types.ProcessConf
 	if probe.Exec != nil {
 		probe.Exec.Command = t.RenderWithExtraVars(probe.Exec.Command, procConf.Vars)
 	} else if probe.HttpGet != nil {
+		probe.HttpGet.Method = t.RenderWithExtraVars(probe.HttpGet.Method, procConf.Vars)
 		probe.HttpGet.Path = t.RenderWithExtraVars(probe.HttpGet.Path, procConf.Vars)
 		probe.HttpGet.Host = t.RenderWithExtraVars(probe.HttpGet.Host, procConf.Vars)
 		probe.HttpGet.Scheme = t.RenderWithExtraVars(probe.HttpGet.Scheme, procConf.Vars)

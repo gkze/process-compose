@@ -116,6 +116,7 @@ func (p *Prober) getHttpChecker() (health.ICheckable, error) {
 
 	config := &checkers.HTTPConfig{
 		URL:        url,
+		Method:     httpGet.Method,
 		Timeout:    time.Duration(p.probe.TimeoutSeconds) * time.Second,
 		StatusCode: httpGet.StatusCode,
 	}

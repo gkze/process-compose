@@ -254,6 +254,7 @@ Variables in Process Compose rely on [Go template engine](https://pkg.go.dev/tex
 - `processes.process.environment` values.
 - For `readiness_probe`and `liveness_probe`:
   - `processes.process.<probe>.exec.command`
+  - `processes.process.<probe>.http_get.method`
   - `processes.process.<probe>.http_get.host`
   - `processes.process.<probe>.http_get.path`
   - `processes.process.<probe>.http_get.scheme`

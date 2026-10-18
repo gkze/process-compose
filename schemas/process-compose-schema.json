@@ -34,6 +34,20 @@
     },
     "HttpProbe": {
       "properties": {
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "HEAD",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "CONNECT",
+            "OPTIONS",
+            "TRACE"
+          ]
+        },
         "host": {
           "type": "string"
         },

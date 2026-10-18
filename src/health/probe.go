@@ -4,9 +4,26 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/danielgtaylor/huma/v2"
 )
+
+// httpProbeMethods are the request methods an HTTP probe may use: the standard
+// methods defined by RFC 9110 and RFC 5789 (PATCH). Methods are case-sensitive.
+var httpProbeMethods = []string{
+	http.MethodGet,
+	http.MethodHead,
+	http.MethodPost,
+	http.MethodPut,
+	http.MethodPatch,
+	http.MethodDelete,
+	http.MethodConnect,
+	http.MethodOptions,
+	http.MethodTrace,
+}
 
 type Probe struct {
 	Exec             *ExecProbe `yaml:"exec,omitempty" json:"exec,omitempty"`
@@ -24,6 +41,7 @@ type ExecProbe struct {
 }
 
 type HttpProbe struct {
+	Method     string            `yaml:"method,omitempty" json:"method,omitempty" jsonschema:"enum=GET,enum=HEAD,enum=POST,enum=PUT,enum=PATCH,enum=DELETE,enum=CONNECT,enum=OPTIONS,enum=TRACE"`
 	Host       string            `yaml:"host,omitempty" json:"host,omitempty"`
 	Path       string            `yaml:"path,omitempty" json:"path,omitempty"`
 	Scheme     string            `yaml:"scheme,omitempty" json:"scheme,omitempty"`
@@ -31,6 +49,16 @@ type HttpProbe struct {
 	NumPort    int               `yaml:"num_port,omitempty" json:"numPort,omitempty"`
 	Headers    map[string]string `yaml:"headers,omitempty" json:"headers,omitempty"`
 	StatusCode int               `yaml:"status_code,omitempty" json:"statusCode,omitempty"`
+}
+
+// TransformSchema documents the method values the HTTP API accepts.
+func (HttpProbe) TransformSchema(_ huma.Registry, s *huma.Schema) *huma.Schema {
+	methods := make([]any, len(httpProbeMethods))
+	for i, method := range httpProbeMethods {
+		methods[i] = method
+	}
+	s.Properties["method"].Enum = methods
+	return s
 }
 
 func (h *HttpProbe) getUrl() (*url.URL, error) {
@@ -66,7 +94,25 @@ func (p *Probe) ValidateAndSetDefaults() {
 	}
 }
 
+// Validate reports configuration errors that defaulting cannot repair.
+func (p *Probe) Validate() error {
+	if p.HttpGet != nil {
+		return p.HttpGet.validate()
+	}
+	return nil
+}
+
+func (p *HttpProbe) validate() error {
+	if p.Method != "" && !slices.Contains(httpProbeMethods, p.Method) {
+		return fmt.Errorf("invalid http_get method '%s': must be one of %s", p.Method, strings.Join(httpProbeMethods, ", "))
+	}
+	return nil
+}
+
 func (p *HttpProbe) validateAndSetHttpDefaults() {
+	if p.Method == "" {
+		p.Method = http.MethodGet
+	}
 	if len(strings.TrimSpace(p.Host)) == 0 {
 		p.Host = "127.0.0.1"
 	}

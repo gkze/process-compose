@@ -156,3 +156,31 @@ func TestHttpProbe_getUrl(t *testing.T) {
 		})
 	}
 }
+
+func TestHttpProbe_method(t *testing.T) {
+	tests := []struct {
+		name       string
+		method     string
+		wantMethod string
+		wantErr    bool
+	}{
+		{name: "Default - GET", method: "", wantMethod: "GET"},
+		{name: "Valid - HEAD", method: "HEAD", wantMethod: "HEAD"},
+		{name: "Valid - POST", method: "POST", wantMethod: "POST"},
+		{name: "Valid - OPTIONS", method: "OPTIONS", wantMethod: "OPTIONS"},
+		{name: "InValid - lower case", method: "get", wantMethod: "get", wantErr: true},
+		{name: "InValid - unknown", method: "FETCH", wantMethod: "FETCH", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &Probe{HttpGet: &HttpProbe{Method: tt.method}}
+			p.ValidateAndSetDefaults()
+			if p.HttpGet.Method != tt.wantMethod {
+				t.Errorf("HttpProbe.Method = %v, want %v", p.HttpGet.Method, tt.wantMethod)
+			}
+			if err := p.Validate(); (err != nil) != tt.wantErr {
+				t.Errorf("Probe.Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

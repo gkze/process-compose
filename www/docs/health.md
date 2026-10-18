@@ -55,7 +55,8 @@ processes:
 Each probe type (`liveness_probe` or `readiness_probe`) can be configured to use one of the 2 mutually exclusive modes:
 
 1. `exec`: Will run a configured `command` and based on the `exit code` decide if the process is in a correct state. 0 indicates success. Any other value indicates failure.
-2. `http_get`: For an HTTP probe, the Process Compose sends an HTTP request to the specified path and port to perform the check. Response code 200 indicates success. Any other value indicates failure.
+2. `http_get`: For an HTTP probe, the Process Compose sends an HTTP request to the specified path and port to perform the check. Response code 200 (or the configured `status_code`) indicates success. Any other value indicates failure.
+   - `method`: Optional. HTTP request method to use: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `CONNECT`, `OPTIONS` or `TRACE` (upper case). Defaults to `GET`. The request is sent without a body.
    - `host`: Host name to connect to.
    - `scheme`: Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
    - `path`: Path to access on the HTTP server. Defaults to /.

@@ -217,6 +217,16 @@ func (p *ProcessConfig) ValidateProcessConfig() error {
 	if p.ShutDownParams.SendKeys != "" && !p.IsInteractive && !p.IsTty {
 		return fmt.Errorf("process '%s': shutdown.send_keys requires is_interactive (or is_tty)", p.Name)
 	}
+	if p.ReadinessProbe != nil {
+		if err := p.ReadinessProbe.Validate(); err != nil {
+			return fmt.Errorf("process '%s': readiness_probe: %w", p.Name, err)
+		}
+	}
+	if p.LivenessProbe != nil {
+		if err := p.LivenessProbe.Validate(); err != nil {
+			return fmt.Errorf("process '%s': liveness_probe: %w", p.Name, err)
+		}
+	}
 	if len(p.Extensions) == 0 {
 		return nil // no error
 	}
